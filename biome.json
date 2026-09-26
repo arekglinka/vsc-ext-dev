@@ -24,5 +24,13 @@
       ".vscode/",
       "*.vsix"
     ]
-  }
+  },
+  "overrides": [
+    {
+      "include": ["scripts/smoke.cjs"],
+      "linter": {
+        "enabled": false
+      }
+    }
+  ]
 }

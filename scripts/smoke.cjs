@@ -2,7 +2,7 @@
 // with stubbed VSCode API + DOM, then drives a DOT render and a graph render
 // through the real message protocol. Exit 0 = both render to SVG.
 "use strict";
-const fs = require("fs");
+const fs = require("node:fs");
 
 const code = fs.readFileSync("media/webview.js", "utf8");
 
@@ -82,7 +82,7 @@ function next() {
     process.exit(ok ? 0 : 1);
   }
   const c = cases[i];
-  listeners["message"]({ data: c.update });
+  listeners.message({ data: c.update });
   setTimeout(() => {
     const pass = c.check();
     console.log(`${pass ? "OK  " : "FAIL"}  ${c.name}  (${elements.status.textContent})`);
