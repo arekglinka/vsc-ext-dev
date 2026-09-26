@@ -44,6 +44,11 @@ are vendored under `packages/`.
 - **viz.js WASM is inlined** in the npm package — no `.wasm` loader config in
   esbuild; the webview CSP needs `'wasm-unsafe-eval'` (see `src/extension.ts`).
 - **`entry.js` must call `main()`** — importing the PS module alone doesn't run it.
+- **Never `npm install purescript` in the workspace** — the toolchain is
+  pinned exactly (`purescript@0.15.16` in package.json, installed by
+  `npm ci`). If the IDE offers to "install purs", decline; a stray install
+  rewrites manifest+lock and spago rejects the old binary
+  ("Unsupported PureScript version").
 - **Rootless podman pollutes ownership**: verification runs like
   `podman run -v $PWD:/build … npm ci` create files owned by uid 101000
   (userns-mapped container root), which the `node` (uid 1000) devcontainer
