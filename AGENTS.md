@@ -44,6 +44,11 @@ are vendored under `packages/`.
 - **viz.js WASM is inlined** in the npm package — no `.wasm` loader config in
   esbuild; the webview CSP needs `'wasm-unsafe-eval'` (see `src/extension.ts`).
 - **`entry.js` must call `main()`** — importing the PS module alone doesn't run it.
+- **spago registry cache lives in the workspace**: the devcontainer sets
+  `XDG_CACHE_HOME=/workspaces/vsc-ext-dev/.cache`, so the one-time registry
+  clone persists across container rebuilds. A fresh clone needs GitHub access;
+  once `.cache/spago-nodejs/` exists, spago tolerates refresh failures
+  ("will proceed anyways" is non-fatal).
 - **Never `npm install purescript` in the workspace** — the toolchain is
   pinned exactly (`purescript@0.15.16` in package.json, installed by
   `npm ci`). If the IDE offers to "install purs", decline; a stray install

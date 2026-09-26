@@ -5,6 +5,10 @@
     "ghcr.io/devcontainers/features/git:1": {}
   },
   "remoteUser": "node",
+  "containerEnv": {
+    "XDG_CACHE_HOME": "/workspaces/vsc-ext-dev/.cache"
+  },
+  "forwardPorts": [5173, 5174, 5175],
   "postCreateCommand": "npm ci",
   "customizations": {
     "vscode": {

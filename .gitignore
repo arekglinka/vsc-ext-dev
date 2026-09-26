@@ -2,6 +2,7 @@
 output/
 output-es/
 .spago/
+.cache/
 
 # Node / npm
 node_modules/
