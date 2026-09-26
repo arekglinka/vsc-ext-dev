@@ -22,7 +22,11 @@ const mkEl = () => ({
 const elements = { status: mkEl(), canvas: mkEl() };
 global.document = { getElementById: (id) => elements[id] ?? null };
 const listeners = {};
-global.window = { addEventListener: (t, fn) => { listeners[t] = fn; } };
+global.window = {
+  addEventListener: (t, fn) => {
+    listeners[t] = fn;
+  },
+};
 const hostMessages = [];
 global.acquireVsCodeApi = () => ({
   postMessage: (m) => {
@@ -36,10 +40,15 @@ global.acquireVsCodeApi = () => ({
 const cases = [
   {
     name: "dot",
-    update: { type: "update", kind: "dot", source: "digraph{a->b}", engine: "dot", fileName: "t.dot" },
+    update: {
+      type: "update",
+      kind: "dot",
+      source: "digraph{a->b}",
+      engine: "dot",
+      fileName: "t.dot",
+    },
     check: () =>
-      elements.canvas.innerHTML.includes("<svg") &&
-      !elements.status.classList._s.has("error"),
+      elements.canvas.innerHTML.includes("<svg") && !elements.status.classList._s.has("error"),
   },
   {
     name: "graph",
@@ -48,7 +57,10 @@ const cases = [
       kind: "graph",
       source: JSON.stringify({
         rankDir: "LR",
-        nodes: [{ id: "a", label: "API" }, { id: "b", label: "DB" }],
+        nodes: [
+          { id: "a", label: "API" },
+          { id: "b", label: "DB" },
+        ],
         edges: [{ from: "a", to: "b" }],
       }),
       engine: "dot",

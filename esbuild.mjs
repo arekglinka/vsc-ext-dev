@@ -11,7 +11,7 @@ const webviewReady = existsSync("output-es/Webview.Main/index.js");
 
 if (!webviewReady) {
   console.warn(
-    "[webview] output-es/Webview.Main/index.js missing — run `npm run build && npm run backend` first",
+    "[webview] output-es/Webview.Main/index.js missing — run `npm run build && npm run backend` first"
   );
 }
 

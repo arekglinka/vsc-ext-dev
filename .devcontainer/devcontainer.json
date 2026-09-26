@@ -8,11 +8,7 @@
   "postCreateCommand": "npm ci",
   "customizations": {
     "vscode": {
-      "extensions": [
-        "nwolverson.ide-purescript",
-        "biomejs.biome",
-        "EFanZh.graphviz"
-      ],
+      "extensions": ["nwolverson.ide-purescript", "biomejs.biome", "EFanZh.graphviz"],
       "settings": {
         "editor.formatOnSave": true,
         "purescript.addNpmPath": true,
