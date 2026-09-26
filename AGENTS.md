@@ -44,5 +44,10 @@ are vendored under `packages/`.
 - **viz.js WASM is inlined** in the npm package — no `.wasm` loader config in
   esbuild; the webview CSP needs `'wasm-unsafe-eval'` (see `src/extension.ts`).
 - **`entry.js` must call `main()`** — importing the PS module alone doesn't run it.
+- **Rootless podman pollutes ownership**: verification runs like
+  `podman run -v $PWD:/build … npm ci` create files owned by uid 101000
+  (userns-mapped container root), which the `node` (uid 1000) devcontainer
+  cannot delete — `npm ci` then fails with EACCES. Clean up after container
+  runs with `podman unshare rm -rf node_modules output output-es .spago dist media`.
 - The host message protocol in `src/extension.ts` is the contract — keep
   `Webview.Main` in sync when changing it.
