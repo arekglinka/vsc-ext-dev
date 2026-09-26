@@ -1,0 +1,27 @@
+{
+  "name": "vsc-ext-dev",
+  "image": "node:22-slim",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  "remoteUser": "node",
+  "postCreateCommand": "npm ci",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "nwolverson.ide-purescript",
+        "biomejs.biome",
+        "EFanZh.graphviz"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "purescript.addNpmPath": true,
+        "purescript.formatter": "purs-tidy",
+        "[javascript]": { "editor.defaultFormatter": "biomejs.biome" },
+        "[json]": { "editor.defaultFormatter": "biomejs.biome" },
+        "[jsonc]": { "editor.defaultFormatter": "biomejs.biome" },
+        "[typescript]": { "editor.defaultFormatter": "biomejs.biome" }
+      }
+    }
+  }
+}

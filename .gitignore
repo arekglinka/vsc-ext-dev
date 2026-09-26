@@ -1,0 +1,30 @@
+# PureScript build artifacts
+output/
+output-es/
+.spago/
+
+# Node / npm
+node_modules/
+
+# Extension build output
+dist/
+media/
+*.vsix
+
+# IDE / Editor
+.idea/
+.vscode/*
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.local
+*.log

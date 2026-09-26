@@ -1,0 +1,20 @@
+digraph oauth2 {
+  rankdir=LR;
+  node [shape=box, style=rounded, fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=9];
+
+  user [label="User (resource owner)"];
+  app [label="Client app"];
+  auth [label="Authorization server"];
+  api [label="Resource server / API"];
+
+  user -> app [label="1. click 'Sign in'"];
+  app -> auth [label="2. redirect /authorize\n(client_id, scope, PKCE)"];
+  auth -> user [label="3. login + consent"];
+  user -> auth [label="4. approve"];
+  auth -> app [label="5. redirect ?code=..."];
+  app -> auth [label="6. POST /token\n(code + PKCE verifier)"];
+  auth -> app [label="7. access_token (+ refresh)"];
+  app -> api [label="8. Bearer token"];
+  api -> app [label="9. 200 OK"];
+}

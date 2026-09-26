@@ -1,0 +1,6 @@
+workspace:
+  packageSet:
+    registry: "61.0.0"
+  buildOpts:
+    censorLibraryWarnings: all
+    statVerbosity: "compact-stats"

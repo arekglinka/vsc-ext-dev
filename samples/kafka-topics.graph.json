@@ -1,0 +1,24 @@
+{
+  "rankDir": "TB",
+  "nodes": [
+    { "id": "orders", "label": "orders", "width": 110, "height": 45 },
+    { "id": "payments", "label": "payments", "width": 110, "height": 45 },
+    { "id": "shipments", "label": "shipments", "width": 120, "height": 45 },
+    { "id": "analytics", "label": "analytics", "width": 120, "height": 45 },
+    { "id": "checkout", "label": "Checkout Service", "width": 160, "height": 50 },
+    { "id": "billing", "label": "Billing Service", "width": 150, "height": 50 },
+    { "id": "fulfil", "label": "Fulfilment Service", "width": 165, "height": 50 },
+    { "id": "dash", "label": "Analytics Dashboard", "width": 175, "height": 50 }
+  ],
+  "edges": [
+    { "from": "checkout", "to": "orders", "label": "OrderCreated" },
+    { "from": "checkout", "to": "payments", "label": "PaymentRequested" },
+    { "from": "billing", "to": "payments", "label": "PaymentCaptured" },
+    { "from": "billing", "to": "shipments", "label": "PaymentConfirmed" },
+    { "from": "fulfil", "to": "shipments", "label": "ShipmentBooked" },
+    { "from": "orders", "to": "analytics", "label": "repartition" },
+    { "from": "payments", "to": "analytics", "label": "repartition" },
+    { "from": "shipments", "to": "analytics", "label": "repartition" },
+    { "from": "analytics", "to": "dash" }
+  ]
+}

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install deps (toolchain + extension)
+        run: npm ci
+
+      - name: Format check (purs-tidy + biome)
+        run: npm run format:check
+
+      - name: Build PureScript (bindings + webview)
+        run: npm run build
+
+      - name: Library tests (purs-dagre + purs-viz)
+        run: npx spago test -p purs-dagre && npx spago test -p purs-viz
+
+      - name: ES output
+        run: npm run backend
+
+      - name: Typecheck + bundle extension
+        run: |
+          npm run typecheck
+          node esbuild.mjs
+
+      - name: Webview smoke test
+        run: node scripts/smoke.cjs
+
+      - name: Package VSIX
+        run: npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: purs-graphs-vsix
+          path: purs-graphs.vsix

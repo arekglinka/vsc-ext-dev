@@ -1,0 +1,120 @@
+{
+  "name": "purs-graphs",
+  "displayName": "Purs Graphs",
+  "description": "Live preview for Graphviz DOT (via viz.js WASM) and JSON graph definitions (via dagre layout) — powered by the purs-viz and purs-dagre PureScript bindings.",
+  "version": "0.1.0",
+  "publisher": "arekglinka",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arekglinka/vsc-ext-dev"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "graphviz",
+    "dot",
+    "dagre",
+    "graph",
+    "preview"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pursGraphs.previewDot",
+        "title": "Purs Graphs: Preview DOT",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "pursGraphs.previewGraph",
+        "title": "Purs Graphs: Preview Graph (JSON)",
+        "icon": "$(graph-scatter)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "pursGraphs.previewDot",
+          "when": "resourceLangId == dot",
+          "group": "navigation"
+        },
+        {
+          "command": "pursGraphs.previewGraph",
+          "when": "resourceExtname == .graph.json",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "pursGraphs.previewDot",
+        "key": "ctrl+shift+g",
+        "when": "editorTextFocus && resourceLangId == dot"
+      }
+    ],
+    "languages": [
+      {
+        "id": "dot",
+        "aliases": [
+          "Graphviz DOT",
+          "dot"
+        ],
+        "extensions": [
+          ".dot",
+          ".gv"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Purs Graphs",
+      "properties": {
+        "pursGraphs.dotEngine": {
+          "type": "string",
+          "default": "dot",
+          "enum": [
+            "dot",
+            "neato",
+            "fdp",
+            "circo",
+            "twopi"
+          ],
+          "description": "Graphviz layout engine used for DOT previews."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "spago build",
+    "backend": "purs-backend-es build --corefn-dir output --output-dir output-es",
+    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs",
+    "typecheck": "tsc --noEmit",
+    "compile": "npm run build && npm run backend && npm run typecheck && node esbuild.mjs",
+    "watch": "spago build --watch & node esbuild.mjs --watch",
+    "package": "npm run compile && npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix",
+    "format": "purs-tidy format-in-place packages webview-src && biome check --write .",
+    "format:check": "purs-tidy check packages webview-src && biome check ."
+  },
+  "dependencies": {
+    "@viz-js/viz": "^3.28.0",
+    "dagre": "^0.8.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.3.0",
+    "esbuild": "^0.24.0",
+    "purescript": "0.15.16",
+    "purs-backend-es": "^1.4.3",
+    "purs-tidy": "^0.11.0",
+    "spago": "^1.0.0",
+    "typescript": "^5.6.0"
+  }
+}

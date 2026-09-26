@@ -1,0 +1,29 @@
+{
+  "rankDir": "LR",
+  "nodes": [
+    { "id": "client", "label": "Browser", "width": 110, "height": 50 },
+    { "id": "cdn", "label": "CDN", "width": 90, "height": 50 },
+    { "id": "lb", "label": "Load Balancer", "width": 140, "height": 50 },
+    { "id": "api1", "label": "API Server 1", "width": 130, "height": 50 },
+    { "id": "api2", "label": "API Server 2", "width": 130, "height": 50 },
+    { "id": "cache", "label": "Redis Cache", "width": 130, "height": 50 },
+    { "id": "db", "label": "Postgres", "width": 110, "height": 50 },
+    { "id": "replica", "label": "Read Replica", "width": 130, "height": 50 },
+    { "id": "queue", "label": "Kafka", "width": 100, "height": 50 },
+    { "id": "worker", "label": "Workers", "width": 110, "height": 50 }
+  ],
+  "edges": [
+    { "from": "client", "to": "cdn", "label": "HTTPS" },
+    { "from": "client", "to": "lb", "label": "API calls" },
+    { "from": "lb", "to": "api1" },
+    { "from": "lb", "to": "api2" },
+    { "from": "api1", "to": "cache", "label": "get/set" },
+    { "from": "api2", "to": "cache", "label": "get/set" },
+    { "from": "api1", "to": "db", "label": "writes" },
+    { "from": "api2", "to": "db", "label": "writes" },
+    { "from": "api1", "to": "replica", "label": "reads" },
+    { "from": "api2", "to": "replica", "label": "reads" },
+    { "from": "db", "to": "queue", "label": "CDC" },
+    { "from": "queue", "to": "worker", "label": "consume" }
+  ]
+}

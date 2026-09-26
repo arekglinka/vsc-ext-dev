@@ -1,0 +1,84 @@
+# vsc-ext-dev — Purs Graphs VSCode extension
+
+Standalone development repo for the **Purs Graphs** VSCode extension: live
+previews for two graph formats, rendered by PureScript bindings to graph
+libraries.
+
+| Preview | File type | Engine |
+|---|---|---|
+| **DOT preview** | `.dot` / `.gv` | Graphviz (viz.js WASM) via [`packages/purs-viz`](packages/purs-viz/) |
+| **Graph (JSON) preview** | `*.graph.json` | dagre layout via [`packages/purs-dagre`](packages/purs-dagre/) |
+
+## Usage
+
+1. Open a `.dot` file → run **Purs Graphs: Preview DOT** (`Ctrl+Shift+G`).
+2. Open a `*.graph.json` file → run **Purs Graphs: Preview Graph (JSON)**.
+
+The preview opens beside the editor and **live-refreshes** as you type.
+Errors render inline in the webview. Sample files live in [`samples/`](samples/).
+
+### JSON graph spec
+
+```json
+{
+  "rankDir": "LR",
+  "nodes": [
+    { "id": "api", "label": "API", "width": 120, "height": 60 },
+    { "id": "db", "label": "Postgres", "width": 140, "height": 60 }
+  ],
+  "edges": [
+    { "from": "api", "to": "db", "label": "SQL" }
+  ]
+}
+```
+
+### Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| `pursGraphs.dotEngine` | `dot` | Graphviz engine (`dot`, `neato`, `fdp`, `circo`, `twopi`) |
+
+## Architecture
+
+```
+vsc-ext-dev/
+├── src/extension.ts        TS extension host: commands, webview panel, CSP, live-refresh
+├── webview-src/            PureScript webview package (Webview.Main entry)
+├── packages/purs-dagre/    vendored: FFI bindings to dagre (layout)
+├── packages/purs-viz/      vendored: FFI bindings to @viz-js/viz (DOT → SVG WASM)
+├── samples/                sample .dot + .graph.json files to preview
+├── scripts/smoke.cjs       headless render smoke test (Node, stubbed vscode API)
+├── esbuild.mjs             dist/extension.js (host) + media/webview.js (webview)
+└── .devcontainer/          one devcontainer.json on node:22-slim
+```
+
+The webview is fully self-contained: viz.js WASM is inlined in the bundle, and
+the webview runs under a strict CSP (nonce + `wasm-unsafe-eval`). Message
+protocol (host ↔ webview) is defined in `src/extension.ts`:
+
+- host → webview: `{ type: "update", kind: "dot" | "graph", source, fileName, engine }`
+- webview → host: `{ type: "ready" } | { type: "rendered", kind, ms } | { type: "error", kind, message }`
+
+## Build
+
+Requires Node 22+ and git (spago needs git in PATH). No global toolchain —
+`npm ci` installs purs, spago, purs-backend-es, purs-tidy, esbuild, and the
+VSIX packager locally.
+
+```bash
+npm ci
+npm run compile   # spago build + ES output + tsc + esbuild bundles
+npm test          # library tests + webview smoke test
+npm run package   # → purs-graphs.vsix
+```
+
+Install: VSCode → Extensions view → `…` → *Install from VSIX*.
+
+## DevContainer
+
+Single `.devcontainer/devcontainer.json` — base `node:22-slim` + git feature;
+`npm ci` on create provides the whole toolchain.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

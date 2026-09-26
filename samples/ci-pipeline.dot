@@ -1,0 +1,29 @@
+digraph ci_pipeline {
+  rankdir=LR;
+  node [shape=box, style="rounded,filled", fillcolor="#eef4fb", fontname="sans-serif", fontsize=11];
+  edge [fontname="sans-serif", fontsize=9];
+
+  push [label="git push"];
+  build [label="Build"];
+  unit [label="Unit tests"];
+  lint [label="Lint + format"];
+  scan [label="Security scan"];
+  docker [label="Docker image"];
+  stage [label="Deploy staging"];
+  e2e [label="E2E tests"];
+  approve [label="Manual approval", shape=diamond, fillcolor="#fdf6e3"];
+  canary [label="Canary 5%"];
+  prod [label="Production 100%", fillcolor="#e8f5e9"];
+
+  push -> build;
+  build -> unit;
+  build -> lint;
+  unit -> scan;
+  lint -> scan;
+  scan -> docker;
+  docker -> stage;
+  stage -> e2e;
+  e2e -> approve;
+  approve -> canary;
+  canary -> prod;
+}
