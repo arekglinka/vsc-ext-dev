@@ -1,8 +1,8 @@
-# vsc-ext-dev — Purs Graphs VSCode extension
+# vsc-ext-dev: Purs Graphs VSCode extension
 
 Standalone development repo for the **Purs Graphs** VSCode extension: live
 previews for two graph formats, rendered by PureScript bindings to graph
-libraries.
+libraries. The extension host and the webview are both PureScript.
 
 | Preview | File type | Engine |
 |---|---|---|
@@ -42,43 +42,61 @@ Errors render inline in the webview. Sample files live in [`samples/`](samples/)
 
 ```
 vsc-ext-dev/
-├── src/extension.ts        TS extension host: commands, webview panel, CSP, live-refresh
-├── webview-src/            PureScript webview package (Webview.Main entry)
-├── packages/purs-dagre/    vendored: FFI bindings to dagre (layout)
-├── packages/purs-viz/      vendored: FFI bindings to @viz-js/viz (DOT → SVG WASM)
-├── samples/                sample .dot + .graph.json files to preview
-├── scripts/smoke.cjs       headless render smoke test (Node, stubbed vscode API)
-├── esbuild.mjs             dist/extension.js (host) + media/webview.js (webview)
-└── .devcontainer/          one devcontainer.json on node:22-slim
+├── host-src/                 PS extension host: Host.Main (activate),
+│                             Host.Html (CSP/HTML), 3-line entry.js shim
+├── webview-src/              PureScript webview package (Webview.Main entry)
+├── packages/purs-vscode/     FFI bindings over the VSCode API
+├── packages/purs-graphs-protocol/  shared host↔webview message protocol
+├── packages/purs-dagre/      vendored: FFI bindings to dagre (layout)
+├── packages/purs-viz/        vendored: FFI bindings to @viz-js/viz (DOT → SVG WASM)
+├── vendor/vscode-stub/       dev-only `vscode` module test double
+├── samples/                  sample .dot + .graph.json files to preview
+├── scripts/                  smoke.cjs (webview) + host-smoke.cjs (host) + fixtures
+├── esbuild.mjs               dist/extension.js (host) + media/webview.js (webview)
+└── .devcontainer/            one devcontainer.json on node:22-slim
 ```
 
 The webview is fully self-contained: viz.js WASM is inlined in the bundle, and
-the webview runs under a strict CSP (nonce + `wasm-unsafe-eval`). Message
-protocol (host ↔ webview) is defined in `src/extension.ts`:
+the webview runs under a strict CSP (nonce + `wasm-unsafe-eval`). The
+host↔webview message protocol lives in
+[`packages/purs-graphs-protocol/src/GraphProtocol.purs`](packages/purs-graphs-protocol/src/GraphProtocol.purs),
+the single source of truth both sides import:
 
 - host → webview: `{ type: "update", kind: "dot" | "graph", source, fileName, engine }`
 - webview → host: `{ type: "ready" } | { type: "rendered", kind, ms } | { type: "error", kind, message }`
 
 ## Build
 
-Requires Node 22+ and git (spago needs git in PATH). No global toolchain —
+Requires Node 22+ and git (spago needs git in PATH). No global toolchain:
 `npm ci` installs purs, spago, purs-backend-es, purs-tidy, esbuild, and the
 VSIX packager locally.
 
 ```bash
 npm ci
-npm run compile   # spago build + ES output + tsc + esbuild bundles
-npm test          # library tests + webview smoke test
+npm run compile   # spago build + ES output + esbuild bundles (no tsc)
+npm test          # 5 spago packages + webview smoke + host smoke
 npm run package   # → purs-graphs.vsix
 ```
 
 Install: VSCode → Extensions view → `…` → *Install from VSIX*.
 
+## Development
+
+`vendor/vscode-stub` is a dev-only `file:` dependency. It provides a fake
+`vscode` module so the bindings and host packages test headlessly under
+`spago test`. Never require it from shipped code: the host bundle keeps
+`vscode` external, so the real API is used at runtime.
+
+Release checklist: before publishing, verify in real VSCode. Press **F5**
+(*Run Purs Graphs extension*, the Extension Development Host), open a sample
+`.dot` or `.graph.json` from `samples/`, edit it, and confirm the preview
+live-refreshes.
+
 ## DevContainer
 
-Single `.devcontainer/devcontainer.json` — base `node:22-slim` + git feature;
+Single `.devcontainer/devcontainer.json`, base `node:22-slim` + git feature;
 `npm ci` on create provides the whole toolchain.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
