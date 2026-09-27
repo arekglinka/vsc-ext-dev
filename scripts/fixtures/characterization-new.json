@@ -1,0 +1,148 @@
+{
+  "commands": {
+    "ids": [
+      "pursGraphs.previewDot",
+      "pursGraphs.previewGraph"
+    ],
+    "contextSubscriptionCount": 2
+  },
+  "noEditorError": {
+    "previewDot": [
+      "Purs Graphs: open a .dot/.gv or *.graph.json file first."
+    ],
+    "previewGraph": [
+      "Purs Graphs: open a .dot/.gv or *.graph.json file first."
+    ]
+  },
+  "wrongKindError": {
+    "previewDotAgainstReadme": [
+      "Purs Graphs: this command previews a .dot/.gv file — the active editor does not look like one."
+    ],
+    "previewGraphAgainstDot": [
+      "Purs Graphs: this command previews a *.graph.json file — the active editor does not look like one."
+    ]
+  },
+  "panel": {
+    "viewType": "pursGraphs.preview",
+    "title": "Preview: demo.dot",
+    "showOptions": -2,
+    "options": {
+      "enableScripts": true,
+      "localResourceRoots": [
+        "file:///ext/media"
+      ]
+    },
+    "html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta http-equiv=\"Content-Security-Policy\" content=\"\n    default-src 'none';\n    img-src vscode-webview: data:;\n    style-src vscode-webview: 'unsafe-inline';\n    script-src 'nonce-<NONCE>' 'wasm-unsafe-eval';\n    font-src vscode-webview:;\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Purs Graphs Preview</title>\n  <style>\n    body {\n      margin: 0;\n      padding: 12px;\n      font-family: var(--vscode-font-family);\n      color: var(--vscode-editor-foreground);\n      background: var(--vscode-editor-background);\n    }\n    #status {\n      font-size: 11px;\n      opacity: 0.7;\n      min-height: 1.2em;\n      margin-bottom: 8px;\n    }\n    #status.error { color: var(--vscode-errorForeground); opacity: 1; }\n    #canvas svg { max-width: 100%; height: auto; }\n    #canvas .pg-edge { stroke: var(--vscode-editor-foreground); opacity: 0.4; }\n    #canvas .pg-node { fill: var(--vscode-editor-widget-background); stroke: var(--vscode-focusBorder); }\n    #canvas .pg-label {\n      fill: var(--vscode-editor-foreground);\n      font-family: var(--vscode-font-family);\n      font-size: 11px;\n      text-anchor: middle;\n      dominant-baseline: middle;\n      pointer-events: none;\n    }\n  </style>\n</head>\n<body>\n  <div id=\"status\"></div>\n  <div id=\"canvas\"></div>\n  <script nonce=\"<NONCE>\" src=\"vscode-webview-resource://file:///ext/media/webview.js\"></script>\n</body>\n</html>",
+    "nonceMaskedCount": 2,
+    "csp": {
+      "hasWasmUnsafeEval": true,
+      "hasImgSrcWebview": true
+    }
+  },
+  "reveal": {
+    "firstPreview": 2,
+    "secondPreview": 2,
+    "panelsCountAfterSecondPreview": 1,
+    "undefinedColumnPreview": [
+      2,
+      -2
+    ]
+  },
+  "postMessages": {
+    "initialPreview": [
+      {
+        "type": "update",
+        "kind": "dot",
+        "source": "digraph{a->b}",
+        "fileName": "demo.dot",
+        "engine": "dot"
+      }
+    ],
+    "secondPreview": [
+      {
+        "type": "update",
+        "kind": "dot",
+        "source": "digraph{a->b}",
+        "fileName": "demo.dot",
+        "engine": "dot"
+      }
+    ],
+    "liveRefreshVisible": [
+      {
+        "type": "update",
+        "kind": "dot",
+        "source": "digraph{a->b}",
+        "fileName": "demo.dot",
+        "engine": "dot"
+      }
+    ],
+    "liveRefreshWhileHidden": {
+      "postsBefore": 3,
+      "postsAfter": 3,
+      "newPosts": []
+    },
+    "engineNeato": [
+      {
+        "type": "update",
+        "kind": "dot",
+        "source": "digraph{a->b}",
+        "fileName": "demo.dot",
+        "engine": "neato"
+      }
+    ]
+  },
+  "consoleLogs": {
+    "error": [
+      "[purs-graphs] dot render error: bad dot"
+    ],
+    "renderedAndMalformed": []
+  },
+  "disposeRecreate": {
+    "panelsCountBefore": 1,
+    "panelsCountAfterDisposeEmit": 1,
+    "postToDisposedPanelAfterEmit": [
+      {
+        "type": "update",
+        "kind": "dot",
+        "source": "digraph{a->b}",
+        "fileName": "demo.dot",
+        "engine": "dot"
+      }
+    ],
+    "panelsCountAfterReopen": 2,
+    "reopenedPanelIsNewObject": true,
+    "reopenedPanelReveals": [
+      2
+    ],
+    "postAfterReopen": [
+      {
+        "type": "update",
+        "kind": "dot",
+        "source": "digraph{a->b}",
+        "fileName": "demo.dot",
+        "engine": "dot"
+      }
+    ]
+  },
+  "graphKind": {
+    "type": "update",
+    "kind": "graph",
+    "source": "{\"nodes\":[]}",
+    "fileName": "g.graph.json",
+    "engine": "dot"
+  },
+  "gvKind": {
+    "type": "update",
+    "kind": "dot",
+    "source": "digraph{b->c}",
+    "fileName": "notes.gv",
+    "engine": "dot"
+  },
+  "languageIdKind": {
+    "type": "update",
+    "kind": "dot",
+    "source": "digraph{d}",
+    "fileName": "dotfile",
+    "engine": "dot"
+  }
+}

@@ -10,6 +10,9 @@ package:
     - either
     - refs
     - console
+    - arrays
+    - foreign-object
+    - strings
   build:
     strict: false
   test:

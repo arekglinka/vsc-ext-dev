@@ -27,14 +27,17 @@
         "path": "host-src",
         "core": {
           "dependencies": [
+            "arrays",
             "console",
             "effect",
             "either",
+            "foreign-object",
             "maybe",
             "prelude",
             "purs-graphs-protocol",
             "purs-vscode",
-            "refs"
+            "refs",
+            "strings"
           ]
         },
         "test": {

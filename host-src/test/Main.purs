@@ -1,7 +1,13 @@
--- | Test suite for `Host.Html` — the verbatim relocation of the webview
--- | HTML/CSP template and nonce generator from `src/extension.ts:155-213`.
+-- | Test suite for the PureScript host:
 -- |
--- | The golden constant below is BYTE-FROZEN from
+-- |  * `Host.Html` — the verbatim relocation of the webview HTML/CSP template
+-- |    and nonce generator from `src/extension.ts:155-213`.
+-- |  * `Host.Main` — the full behavior suite for the activation port of
+-- |    `src/extension.ts:47-153`, driving `activate` against the dev-only
+-- |    vscode stub (via `host-src/test/Main.js` FFI) and mirroring the
+-- |    characterization steps frozen in `scripts/fixtures/characterization.json`.
+-- |
+-- | The golden HTML constant below is BYTE-FROZEN from
 -- | `scripts/fixtures/characterization.json` field `.panel.html`
 -- | (captured from the CURRENT TS host in Task 4, every nonce masked as
 -- | `<NONCE>`, scriptUri `vscode-webview-resource://file:///ext/media/webview.js`).
@@ -13,19 +19,64 @@ module Test.HostMain where
 
 import Prelude
 
+import Data.Argonaut.Core (Json)
 import Data.Array (length)
 import Data.Foldable (all)
+import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), Replacement(..), contains, replaceAll, split)
 import Data.String as Str
 import Data.String.CodeUnits (toCharArray)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
+import Effect.Uncurried (runEffectFn1)
+import GraphProtocol (GraphKind(..))
 import Host.Html (getHtml, getNonce)
+import Host.Main (activate, kindForDocument)
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual, shouldNotEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
 import Test.Spec.Runner (run)
+import Vscode.Core (ExtensionContext, TextDocument, TextEditor)
+
+-- Stub-side observation FFI (host-src/test/Main.js).
+foreign import data StubPanel :: Type
+
+foreign import resetStub :: Effect Unit
+foreign import makeContext :: Effect ExtensionContext
+foreign import subscriptionsLength :: ExtensionContext -> Effect Int
+foreign import stubCommandIds :: Effect (Array String)
+foreign import invokeCommand :: String -> Effect Unit
+foreign import makeTextDocument
+  :: { fileName :: String, languageId :: String, text :: String } -> Effect TextDocument
+
+foreign import makeFakeEditor :: TextDocument -> Int -> Effect TextEditor
+
+foreign import makeFakeEditorWithoutColumn :: TextDocument -> Effect TextEditor
+
+foreign import setActiveTextEditor :: TextEditor -> Effect Unit
+foreign import drainErrorMessages :: Effect (Array String)
+foreign import panelsLength :: Effect Int
+foreign import panelAt :: Int -> Effect StubPanel
+foreign import panelViewType :: StubPanel -> Effect String
+foreign import panelTitle :: StubPanel -> Effect String
+foreign import panelShowOptions :: StubPanel -> Effect Int
+foreign import panelRevealsLength :: StubPanel -> Effect Int
+foreign import panelRevealAt :: StubPanel -> Int -> Effect Int
+foreign import countNonceRuns :: StubPanel -> Effect Int
+foreign import webviewHtmlContains :: StubPanel -> String -> Effect Boolean
+foreign import setPanelVisible :: StubPanel -> Boolean -> Effect Unit
+foreign import fireDispose :: StubPanel -> Effect Unit
+foreign import panelReferenceEquals :: StubPanel -> StubPanel -> Boolean
+foreign import emitDocChange :: TextDocument -> Effect Unit
+foreign import setConfiguration :: String -> String -> String -> Effect Unit
+foreign import fireWebviewMessage :: StubPanel -> Json -> Effect Unit
+foreign import errorPayload :: Json
+foreign import renderedPayload :: Json
+foreign import malformedPayload :: Json
+foreign import captureLogs :: Effect Unit -> Effect (Array String)
+foreign import postMessagesLength :: Effect Int
+foreign import postMessageStringifyAt :: Int -> Effect String
 
 -- | Fixed nonce for golden substitution (32 chars from `[A-Za-z0-9]`).
 -- | (Plan text suggested "abcdefABCDEF0123456789abcdef12", which is only
@@ -48,6 +99,41 @@ isNonceChar c =
   (c >= 'A' && c <= 'Z')
     || (c >= 'a' && c <= 'z')
     || (c >= '0' && c <= '9')
+
+-- | Reset the stub and run `activate` against a fresh context.
+setup :: Effect ExtensionContext
+setup = do
+  resetStub
+  context <- makeContext
+  runEffectFn1 activate context
+  pure context
+
+demoDotSpec :: { fileName :: String, languageId :: String, text :: String }
+demoDotSpec = { fileName: "demo.dot", languageId: "dot", text: "digraph{a->b}" }
+
+-- Exact wire payloads (JSON.stringify form — key order included).
+demoPayload :: String
+demoPayload =
+  "{\"type\":\"update\",\"kind\":\"dot\",\"source\":\"digraph{a->b}\",\"fileName\":\"demo.dot\",\"engine\":\"dot\"}"
+
+neatoPayload :: String
+neatoPayload =
+  "{\"type\":\"update\",\"kind\":\"dot\",\"source\":\"digraph{a->b}\",\"fileName\":\"demo.dot\",\"engine\":\"neato\"}"
+
+graphPayload :: String
+graphPayload =
+  "{\"type\":\"update\",\"kind\":\"graph\",\"source\":\"{\\\"nodes\\\":[]}\",\"fileName\":\"g.graph.json\",\"engine\":\"dot\"}"
+
+gvPayload :: String
+gvPayload =
+  "{\"type\":\"update\",\"kind\":\"dot\",\"source\":\"digraph{b->c}\",\"fileName\":\"notes.gv\",\"engine\":\"dot\"}"
+
+languageIdPayload :: String
+languageIdPayload =
+  "{\"type\":\"update\",\"kind\":\"dot\",\"source\":\"digraph{d}\",\"fileName\":\"dotfile\",\"engine\":\"dot\"}"
+
+expectEq :: forall a. Eq a => Show a => Effect a -> a -> Effect Unit
+expectEq action expected = action >>= \actual -> actual `shouldEqual` expected
 
 main :: Effect Unit
 main = launchAff_ $ run [ consoleReporter ] do
@@ -97,4 +183,223 @@ main = launchAff_ $ run [ consoleReporter ] do
         n <- liftEffect getNonce
         Str.length n `shouldEqual` 32
         all isNonceChar (toCharArray n) `shouldEqual` true
+
+  describe "Host.Main" do
+
+    describe "activate" do
+      it "registers exactly the two preview commands (fixture order)" do
+        _ <- liftEffect setup
+        liftEffect $ stubCommandIds `expectEq` [ "pursGraphs.previewDot", "pursGraphs.previewGraph" ]
+
+      it "grows context subscriptions to 2 (both commands; the doc-change listener is per-panel)" do
+        context <- liftEffect setup
+        liftEffect $ subscriptionsLength context `expectEq` 2
+
+    describe "openPreview guards" do
+      it "no active editor → exact error message (both commands)" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ drainErrorMessages `expectEq`
+          [ "Purs Graphs: open a .dot/.gv or *.graph.json file first." ]
+        liftEffect $ invokeCommand "pursGraphs.previewGraph"
+        liftEffect $ drainErrorMessages `expectEq`
+          [ "Purs Graphs: open a .dot/.gv or *.graph.json file first." ]
+
+      it "markdown doc via previewDot → exact wrong-kind message" do
+        _ <- liftEffect setup
+        readme <- liftEffect $ makeTextDocument
+          { fileName: "README.md", languageId: "markdown", text: "# hello" }
+        editor <- liftEffect $ makeFakeEditor readme 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ drainErrorMessages `expectEq`
+          [ "Purs Graphs: this command previews a .dot/.gv file — the active editor does not look like one." ]
+
+      it "dot doc via previewGraph → exact wrong-kind message" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewGraph"
+        liftEffect $ drainErrorMessages `expectEq`
+          [ "Purs Graphs: this command previews a *.graph.json file — the active editor does not look like one." ]
+
+    describe "panel lifecycle" do
+      it "preview demo.dot → panel created with fixture title/viewType/showOptions/html; reveal col 1+1" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ panelsLength `expectEq` 1
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ panelViewType panel `expectEq` "pursGraphs.preview"
+        liftEffect $ panelTitle panel `expectEq` "Preview: demo.dot"
+        liftEffect $ panelShowOptions panel `expectEq` (-2)
+        liftEffect $ panelRevealAt panel 0 `expectEq` 2
+        liftEffect $ countNonceRuns panel `expectEq` 2
+        liftEffect $ webviewHtmlContains panel "'wasm-unsafe-eval'" `expectEq` true
+        liftEffect $ webviewHtmlContains panel "img-src vscode-webview:" `expectEq` true
+        liftEffect $ webviewHtmlContains panel "src=\"vscode-webview-resource://file:///ext/media/webview.js\""
+          `expectEq` true
+
+      it "second preview of the same doc → reveal, no new panel, DOES post an update" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ panelsLength `expectEq` 1
+        liftEffect $ panelRevealsLength panel `expectEq` 2
+        liftEffect $ panelRevealAt panel 1 `expectEq` 2
+        liftEffect $ postMessagesLength `expectEq` 2
+        liftEffect $ postMessageStringifyAt 1 `expectEq` demoPayload
+
+      it "editor with undefined viewColumn → reveal falls back to Beside (-2)" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        noColumnEditor <- liftEffect $ makeFakeEditorWithoutColumn demo
+        liftEffect $ setActiveTextEditor noColumnEditor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ panelsLength `expectEq` 1
+        liftEffect $ panelRevealsLength panel `expectEq` 2
+        liftEffect $ panelRevealAt panel 1 `expectEq` (-2)
+
+    describe "kindForDocument (order-exact port)" do
+      it ".gv extension → Dot (extension wins over languageId)" do
+        gv <- liftEffect $ makeTextDocument
+          { fileName: "notes.gv", languageId: "plaintext", text: "digraph{b->c}" }
+        liftEffect $ kindForDocument gv `expectEq` Just Dot
+
+      it "*.graph.json suffix → Graph" do
+        graphDoc <- liftEffect $ makeTextDocument
+          { fileName: "g.graph.json", languageId: "json", text: "{\"nodes\":[]}" }
+        liftEffect $ kindForDocument graphDoc `expectEq` Just Graph
+
+      it "extensionless name with languageId \"dot\" → Dot (slice(-1) edge classifies nothing)" do
+        bare <- liftEffect $ makeTextDocument
+          { fileName: "dotfile", languageId: "dot", text: "digraph{d}" }
+        liftEffect $ kindForDocument bare `expectEq` Just Dot
+
+      it "README.md / markdown → Nothing" do
+        readme <- liftEffect $ makeTextDocument
+          { fileName: "README.md", languageId: "markdown", text: "# hello" }
+        liftEffect $ kindForDocument readme `expectEq` Nothing
+
+    describe "live refresh" do
+      it "visible panel: emit → exact update payload" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ postMessageStringifyAt 0 `expectEq` demoPayload
+        liftEffect $ emitDocChange demo
+        liftEffect $ postMessagesLength `expectEq` 2
+        liftEffect $ postMessageStringifyAt 1 `expectEq` demoPayload
+
+      it "hidden panel: emit → NO new post (visible guard)" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ setPanelVisible panel false
+        liftEffect $ emitDocChange demo
+        liftEffect $ postMessagesLength `expectEq` 1
+
+      it "config pursGraphs.dotEngine=neato → engine in next payload (re-read per push)" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ setConfiguration "pursGraphs" "dotEngine" "neato"
+        liftEffect $ emitDocChange demo
+        liftEffect $ postMessagesLength `expectEq` 2
+        liftEffect $ postMessageStringifyAt 1 `expectEq` neatoPayload
+        liftEffect $ setConfiguration "pursGraphs" "dotEngine" "dot"
+
+      it "graph/gv/languageId docs produce their exact wire payloads" do
+        _ <- liftEffect setup
+        graphDoc <- liftEffect $ makeTextDocument
+          { fileName: "g.graph.json", languageId: "json", text: "{\"nodes\":[]}" }
+        graphEditor <- liftEffect $ makeFakeEditor graphDoc 1
+        liftEffect $ setActiveTextEditor graphEditor
+        liftEffect $ invokeCommand "pursGraphs.previewGraph"
+        liftEffect $ postMessageStringifyAt 0 `expectEq` graphPayload
+        gv <- liftEffect $ makeTextDocument
+          { fileName: "notes.gv", languageId: "plaintext", text: "digraph{b->c}" }
+        gvEditor <- liftEffect $ makeFakeEditor gv 2
+        liftEffect $ setActiveTextEditor gvEditor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ postMessagesLength `expectEq` 2
+        liftEffect $ postMessageStringifyAt 1 `expectEq` gvPayload
+        bare <- liftEffect $ makeTextDocument
+          { fileName: "dotfile", languageId: "dot", text: "digraph{d}" }
+        bareEditor <- liftEffect $ makeFakeEditor bare 1
+        liftEffect $ setActiveTextEditor bareEditor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ postMessagesLength `expectEq` 3
+        liftEffect $ postMessageStringifyAt 2 `expectEq` languageIdPayload
+
+    describe "webview → host messages" do
+      it "error message → exact console line" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        logs <- liftEffect $ captureLogs (fireWebviewMessage panel errorPayload)
+        logs `shouldEqual` [ "[purs-graphs] dot render error: bad dot" ]
+
+      it "rendered + malformed messages → silent, no crash, no posts" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        logs <- liftEffect $ captureLogs do
+          fireWebviewMessage panel renderedPayload
+          fireWebviewMessage panel malformedPayload
+        logs `shouldEqual` []
+        liftEffect $ postMessagesLength `expectEq` 1
+
+    describe "dispose / recreate" do
+      it "dispose clears the registry; the per-panel change listener LEAKS on purpose (verbatim)" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireDispose panel
+        liftEffect $ panelsLength `expectEq` 1
+        liftEffect $ emitDocChange demo
+        liftEffect $ postMessagesLength `expectEq` 2
+        liftEffect $ postMessageStringifyAt 1 `expectEq` demoPayload
+
+      it "re-preview after dispose → a NEW panel object" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireDispose panel
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        liftEffect $ panelsLength `expectEq` 2
+        newPanel <- liftEffect $ panelAt 1
+        liftEffect $ pure (panelReferenceEquals newPanel panel) `expectEq` false
+        liftEffect $ panelRevealsLength newPanel `expectEq` 1
+        liftEffect $ postMessagesLength `expectEq` 2
 
