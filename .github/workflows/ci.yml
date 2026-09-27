@@ -48,6 +48,9 @@ jobs:
       - name: Webview smoke test
         run: node scripts/smoke.cjs
 
+      - name: Host smoke test
+        run: node scripts/host-smoke.cjs
+
       - name: Package VSIX
         run: npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix
 

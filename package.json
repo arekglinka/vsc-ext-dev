@@ -72,7 +72,7 @@
   "scripts": {
     "build": "spago build",
     "backend": "purs-backend-es build --corefn-dir output --output-dir output-es",
-    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs && spago test -p purs-graphs-protocol && spago test -p purs-vscode && spago test -p purs-graphs-host",
+    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs && spago test -p purs-graphs-protocol && spago test -p purs-vscode && spago test -p purs-graphs-host && node scripts/host-smoke.cjs",
     "compile": "npm run build && npm run backend && node esbuild.mjs",
     "watch": "spago build --watch & node esbuild.mjs --watch",
     "package": "npm run compile && npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix",
