@@ -53,3 +53,53 @@ export const invokeCommand = (id) => () => {
   const entry = vscode.__stub.commands.find((e) => e.id === id);
   if (entry) entry.handler();
 };
+
+// --- Workspace drivers ---
+
+export const setConfiguration = (section) => (key) => (value) => () =>
+  vscode.__stub.setConfiguration(section, key, value);
+
+export const emitDocChange = (doc) => () => vscode.__stub.emitDocChange(doc);
+
+export const docChangeListenersLength = () => vscode.__stub.docChangeListeners.length;
+
+// --- WebviewPanel drivers ---
+
+export const panelRevealsLength = (panel) => () => panel.reveals.length;
+
+// `reveal` records the RAW column value: a PS `ViewColumn` newtype crosses the
+// FFI erased to its Int, so the reader returns the plain number.
+export const panelRevealAt = (panel) => (index) => () => panel.reveals[index];
+
+export const setPanelVisible = (panel) => (visible) => () => {
+  panel.visible = visible;
+};
+
+// Mirrors the stub's own emit style (iterate a copy, call with thisArg) for the
+// dispose listeners keyed by panel.
+export const fireDispose = (panel) => () => {
+  for (const entry of [...vscode.__stub.disposeListeners]) {
+    if (entry.panel === panel) entry.callback.call(entry.thisArg);
+  }
+};
+
+export const disposeListenersLength = () => vscode.__stub.disposeListeners.length;
+
+export const messageListenersLength = () => vscode.__stub.messageListeners.length;
+
+// Delivers a raw JS payload to the webview-message listeners of one panel —
+// the same shape a real webview's postMessage would arrive with.
+export const fireWebviewMessage = (panel) => (payload) => () => {
+  for (const entry of [...vscode.__stub.messageListeners]) {
+    if (entry.panel === panel) entry.callback.call(entry.thisArg, payload);
+  }
+};
+
+export const webviewHtml = (webview) => () => webview.html;
+
+export const postMessagesLength = () => vscode.__stub.postMessages.length;
+
+// Deep-equality via stringify: postMessage payloads are plain JS objects, so
+// JSON.stringify is the faithful observation point (key order included).
+export const postMessageStringifyAt = (index) => () =>
+  JSON.stringify(vscode.__stub.postMessages[index]);

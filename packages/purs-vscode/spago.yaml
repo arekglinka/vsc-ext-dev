@@ -7,6 +7,7 @@ package:
     - maybe
     - nullable
     - functions
+    - argonaut-core
   build:
     strict: false
   test:
@@ -15,3 +16,5 @@ package:
       - spec
       - aff
       - refs
+      - argonaut-core
+      - foreign-object

@@ -121,6 +121,7 @@
         "path": "packages/purs-vscode",
         "core": {
           "dependencies": [
+            "argonaut-core",
             "effect",
             "functions",
             "maybe",
@@ -131,6 +132,8 @@
         "test": {
           "dependencies": [
             "aff",
+            "argonaut-core",
+            "foreign-object",
             "refs",
             "spec"
           ]
