@@ -36,7 +36,8 @@ FROM test AS gate
 COPY --from=rust-tests /rust-tests-passed /rust-tests-passed
 
 FROM gate AS vsix
-RUN npx @vscode/vsce package --no-dependencies -o /out/purs-graphs.vsix
+RUN mkdir -p /out \
+  && npx @vscode/vsce package --no-dependencies -o /out/purs-graphs.vsix
 
 FROM scratch AS artifact
 COPY --from=vsix /out/purs-graphs.vsix /purs-graphs.vsix
