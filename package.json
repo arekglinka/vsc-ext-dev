@@ -72,7 +72,7 @@
   "scripts": {
     "build": "spago build",
     "backend": "purs-backend-es build --corefn-dir output --output-dir output-es",
-    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs",
+    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs && spago test -p purs-graphs-protocol",
     "typecheck": "tsc --noEmit",
     "compile": "npm run build && npm run backend && npm run typecheck && node esbuild.mjs",
     "watch": "spago build --watch & node esbuild.mjs --watch",
@@ -94,6 +94,7 @@
     "purs-backend-es": "^1.4.3",
     "purs-tidy": "^0.11.0",
     "spago": "^1.0.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vscode": "file:vendor/vscode-stub"
   }
 }

@@ -1,0 +1,7 @@
+{
+  "name": "vscode",
+  "version": "0.0.0-stub",
+  "description": "Dev-only stub of the vscode module surface used by src/extension.ts. Never shipped.",
+  "main": "index.js",
+  "private": true
+}
