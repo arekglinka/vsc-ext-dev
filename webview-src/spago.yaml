@@ -10,5 +10,6 @@ package:
     - ordered-collections
     - prelude
     - purs-dagre
+    - purs-graphs-protocol
     - purs-viz
     - strings
