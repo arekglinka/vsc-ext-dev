@@ -131,6 +131,7 @@
         "test": {
           "dependencies": [
             "aff",
+            "refs",
             "spec"
           ]
         }
