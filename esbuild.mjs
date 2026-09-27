@@ -15,15 +15,26 @@ if (!webviewReady) {
   );
 }
 
-const hostCtx = await esbuild.context({
-  ...common,
-  entryPoints: ["src/extension.ts"],
-  outfile: "dist/extension.js",
-  format: "cjs",
-  platform: "node",
-  target: "ES2022",
-  external: ["vscode"],
-});
+const hostEntry = "host-src/entry.js";
+const hostReady = existsSync("output-es/Host.Main/index.js");
+
+if (!hostReady) {
+  console.warn(
+    "[host] output-es/Host.Main/index.js missing — run `npm run build && npm run backend` first"
+  );
+}
+
+const hostCtx = hostReady
+  ? await esbuild.context({
+      ...common,
+      entryPoints: [hostEntry],
+      outfile: "dist/extension.js",
+      format: "cjs",
+      platform: "node",
+      target: "ES2022",
+      external: ["vscode"],
+    })
+  : null;
 
 const webviewCtx = webviewReady
   ? await esbuild.context({
@@ -37,15 +48,19 @@ const webviewCtx = webviewReady
   : null;
 
 if (watch) {
-  await hostCtx.watch();
+  if (hostCtx) {
+    await hostCtx.watch();
+  }
   if (webviewCtx) {
     await webviewCtx.watch();
   }
   console.log("[ext] watching…");
 } else {
-  await hostCtx.rebuild();
-  await hostCtx.dispose();
-  console.log("[ext] built dist/extension.js");
+  if (hostCtx) {
+    await hostCtx.rebuild();
+    await hostCtx.dispose();
+    console.log("[ext] built dist/extension.js");
+  }
   if (webviewCtx) {
     await webviewCtx.rebuild();
     await webviewCtx.dispose();

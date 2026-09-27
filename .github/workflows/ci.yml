@@ -31,16 +31,19 @@ jobs:
       - name: Build PureScript (bindings + webview)
         run: npm run build
 
-      - name: Library tests (purs-dagre + purs-viz)
-        run: npx spago test -p purs-dagre && npx spago test -p purs-viz
+      - name: Package tests (all 5 spago packages)
+        run: |
+          npx spago test -p purs-dagre
+          npx spago test -p purs-viz
+          npx spago test -p purs-graphs-protocol
+          npx spago test -p purs-vscode
+          npx spago test -p purs-graphs-host
 
       - name: ES output
         run: npm run backend
 
-      - name: Typecheck + bundle extension
-        run: |
-          npm run typecheck
-          node esbuild.mjs
+      - name: Bundle extension
+        run: node esbuild.mjs
 
       - name: Webview smoke test
         run: node scripts/smoke.cjs

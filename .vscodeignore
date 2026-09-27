@@ -1,9 +1,14 @@
 .vscode/**
 .devcontainer/**
 .github/**
+.scratch/**
+.sisyphus/**
+.cache/**
 src/**
 packages/**
 webview-src/**
+host-src/**
+vendor/**
 scripts/**
 node_modules/**
 esbuild.mjs

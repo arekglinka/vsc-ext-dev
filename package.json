@@ -72,13 +72,12 @@
   "scripts": {
     "build": "spago build",
     "backend": "purs-backend-es build --corefn-dir output --output-dir output-es",
-    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs && spago test -p purs-graphs-protocol",
-    "typecheck": "tsc --noEmit",
-    "compile": "npm run build && npm run backend && npm run typecheck && node esbuild.mjs",
+    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs && spago test -p purs-graphs-protocol && spago test -p purs-vscode && spago test -p purs-graphs-host",
+    "compile": "npm run build && npm run backend && node esbuild.mjs",
     "watch": "spago build --watch & node esbuild.mjs --watch",
     "package": "npm run compile && npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix",
-    "format": "purs-tidy format-in-place packages webview-src && biome check --write .",
-    "format:check": "purs-tidy check packages webview-src && biome check ."
+    "format": "purs-tidy format-in-place packages webview-src host-src && biome check --write .",
+    "format:check": "purs-tidy check packages webview-src host-src && biome check ."
   },
   "dependencies": {
     "@viz-js/viz": "^3.28.0",
@@ -86,15 +85,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
-    "@types/node": "^22.0.0",
-    "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.3.0",
     "esbuild": "^0.24.0",
     "purescript": "0.15.16",
     "purs-backend-es": "^1.4.3",
     "purs-tidy": "^0.11.0",
     "spago": "^1.0.0",
-    "typescript": "^5.6.0",
     "vscode": "file:vendor/vscode-stub"
   }
 }

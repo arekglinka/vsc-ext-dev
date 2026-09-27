@@ -21,6 +21,9 @@
       "media/",
       "node_modules/",
       ".spago/",
+      ".cache/",
+      ".sisyphus/",
+      "scripts/fixtures/",
       ".vscode/",
       "*.vsix"
     ]
