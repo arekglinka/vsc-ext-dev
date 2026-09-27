@@ -1,0 +1,16 @@
+package:
+  name: purs-vscode
+  description: "PureScript FFI bindings to the VSCode extension API"
+  dependencies:
+    - prelude
+    - effect
+    - maybe
+    - nullable
+    - functions
+  build:
+    strict: false
+  test:
+    main: Test.VscodeMain
+    dependencies:
+      - spec
+      - aff

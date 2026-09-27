@@ -23,6 +23,48 @@
           ]
         }
       },
+      "purs-graphs-host": {
+        "path": "host-src",
+        "core": {
+          "dependencies": [
+            "console",
+            "effect",
+            "either",
+            "maybe",
+            "prelude",
+            "purs-graphs-protocol",
+            "purs-vscode",
+            "refs"
+          ]
+        },
+        "test": {
+          "dependencies": []
+        }
+      },
+      "purs-graphs-protocol": {
+        "path": "packages/purs-graphs-protocol",
+        "core": {
+          "dependencies": [
+            "argonaut-codecs",
+            "argonaut-core",
+            "either",
+            "foreign-object",
+            "maybe",
+            "prelude",
+            "tuples"
+          ]
+        },
+        "test": {
+          "dependencies": [
+            "aff",
+            "arrays",
+            "either",
+            "quickcheck",
+            "spec",
+            "spec-quickcheck"
+          ]
+        }
+      },
       "purs-graphs-webview": {
         "path": "webview-src",
         "core": {
@@ -66,6 +108,24 @@
             "spec",
             "spec-quickcheck",
             "strings"
+          ]
+        }
+      },
+      "purs-vscode": {
+        "path": "packages/purs-vscode",
+        "core": {
+          "dependencies": [
+            "effect",
+            "functions",
+            "maybe",
+            "nullable",
+            "prelude"
+          ]
+        },
+        "test": {
+          "dependencies": [
+            "aff",
+            "spec"
           ]
         }
       }

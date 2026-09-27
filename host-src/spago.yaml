@@ -1,0 +1,14 @@
+package:
+  name: purs-graphs-host
+  description: "PureScript extension host for Purs Graphs (replaces src/extension.ts)"
+  dependencies:
+    - purs-vscode
+    - purs-graphs-protocol
+    - prelude
+    - effect
+    - maybe
+    - either
+    - refs
+    - console
+  build:
+    strict: false
