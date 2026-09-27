@@ -1,0 +1,22 @@
+package:
+  name: purs-graphs-protocol
+  description: "Shared host-webview message protocol: message ADTs and strict argonaut codecs"
+  dependencies:
+    - argonaut-codecs
+    - argonaut-core
+    - either
+    - foreign-object
+    - maybe
+    - prelude
+    - tuples
+  build:
+    strict: false
+  test:
+    main: Test.ProtocolMain
+    dependencies:
+      - spec
+      - aff
+      - quickcheck
+      - spec-quickcheck
+      - either
+      - arrays
