@@ -1,0 +1,11 @@
+#!/bin/sh
+# Devcontainer CLI wrapper: when docker is not installed, prepends this
+# directory to PATH so the CLI's `docker` calls resolve to the podman shim
+# (scripts/docker). Usage: scripts/devcontainer <up|exec|build|...> [args]
+set -eu
+dir=$(cd "$(dirname "$0")" && pwd)
+if ! command -v docker > /dev/null 2>&1; then
+  PATH="$dir:$PATH"
+  export PATH
+fi
+exec npx --yes @devcontainers/cli "$@"

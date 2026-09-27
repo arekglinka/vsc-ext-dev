@@ -108,11 +108,9 @@ container:
 - **Inspect (VSCode)**: reconnect normally via "Reopen in Container", or attach
   to the running container ("Dev Containers: Attach to Running Container").
 
-Headless start without VSCode: `npx @devcontainers/cli up --workspace-folder .`
-— builds, applies lifecycle commands, and leaves the container running. The
-CLI shells out to `docker`; without it, shim podman onto PATH first
-(`mkdir -p ~/.local/bin && printf '#!/bin/sh\nexec podman "$@"\n' >
-~/.local/bin/docker && chmod +x ~/.local/bin/docker`).
+Headless start without VSCode: `npm run devcontainer:up` — builds, applies
+lifecycle commands, and leaves the container running (wraps the
+`@devcontainers/cli`, shimming podman when docker is absent).
 
 ## License
 

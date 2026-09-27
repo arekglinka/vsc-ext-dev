@@ -76,6 +76,7 @@
     "compile": "npm run build && npm run backend && node esbuild.mjs",
     "watch": "spago build --watch & node esbuild.mjs --watch",
     "package": "npm run compile && npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix",
+    "devcontainer:up": "scripts/devcontainer up --workspace-folder .",
     "format": "purs-tidy format-in-place packages webview-src host-src && biome check --write .",
     "format:check": "purs-tidy check packages webview-src host-src && biome check ."
   },

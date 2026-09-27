@@ -1,0 +1,4 @@
+#!/bin/sh
+# PATH shim for the devcontainer CLI (installed by scripts/devcontainer when
+# docker is absent): forwards to podman. Not a general docker replacement.
+exec podman "$@"
