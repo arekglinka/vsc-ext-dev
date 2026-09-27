@@ -12,3 +12,11 @@ package:
     - console
   build:
     strict: false
+  test:
+    main: Test.HostMain
+    dependencies:
+      - spec
+      - aff
+      - strings
+      - arrays
+      - foldable-traversable

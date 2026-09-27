@@ -38,7 +38,13 @@
           ]
         },
         "test": {
-          "dependencies": []
+          "dependencies": [
+            "aff",
+            "arrays",
+            "foldable-traversable",
+            "spec",
+            "strings"
+          ]
         }
       },
       "purs-graphs-protocol": {
