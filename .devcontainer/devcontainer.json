@@ -1,11 +1,8 @@
 {
   "name": "vsc-ext-dev",
-  "image": "node:22-slim",
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers-extra/features/tmux-apt-get:1": {},
-    "ghcr.io/michidk/devcontainers-features/bun:1": {}
+  "build": {
+    "dockerfile": "../Dockerfile.devcontainer",
+    "context": ".."
   },
   "remoteUser": "node",
   "containerUser": "node",
