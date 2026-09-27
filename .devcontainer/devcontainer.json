@@ -2,14 +2,17 @@
   "name": "vsc-ext-dev",
   "image": "node:22-slim",
   "features": {
-    "ghcr.io/devcontainers/features/git:1": {}
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/michidk/devcontainers-features/bun:1": {}
   },
   "remoteUser": "node",
+  "containerName": "purs-graphs-dev",
+  "shutdownAction": "none",
   "containerEnv": {
     "XDG_CACHE_HOME": "/workspaces/vsc-ext-dev/.cache"
   },
   "forwardPorts": [5173, 5174, 5175],
-  "postCreateCommand": "npm ci",
+  "postCreateCommand": "npm ci && BUN_INSTALL=$HOME/.bun bun install -g omo-ai && { grep -qs '.bun/bin' ~/.bashrc || printf '\\nexport PATH=\"$HOME/.bun/bin:$PATH\"\\n' >> ~/.bashrc; } && { grep -qs '.bun/bin' ~/.profile || printf '\\nexport PATH=\"$HOME/.bun/bin:$PATH\"\\n' >> ~/.profile; }",
   "customizations": {
     "vscode": {
       "extensions": ["nwolverson.ide-purescript", "biomejs.biome", "EFanZh.graphviz"],

@@ -94,8 +94,21 @@ live-refreshes.
 
 ## DevContainer
 
-Single `.devcontainer/devcontainer.json`, base `node:22-slim` + git feature;
-`npm ci` on create provides the whole toolchain.
+Single `.devcontainer/devcontainer.json` — base `node:22-slim` + git and bun
+features; `npm ci` on create provides the whole toolchain, and OmO
+([omo.dev](https://omo.dev/)) is installed globally for agent runs.
+
+The container is named `purs-graphs-dev` and keeps running after the VSCode
+client disconnects (`shutdownAction: "none"`), so two access paths share one
+container:
+
+- **Agents (headless)**: `podman exec -it purs-graphs-dev bash -lc 'omo ...'`
+  (login shell so `~/.bun/bin` is on PATH).
+- **Inspect (VSCode)**: reconnect normally via "Reopen in Container", or attach
+  to the running container ("Dev Containers: Attach to Running Container").
+
+Headless start without VSCode: `npx @devcontainers/cli up --workspace-folder .`
+— builds, applies lifecycle commands, and leaves the container running.
 
 ## License
 
