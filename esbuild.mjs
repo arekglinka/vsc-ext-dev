@@ -1,10 +1,29 @@
-import { existsSync } from "node:fs";
+import { copyFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import esbuild from "esbuild";
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
 
 const common = { bundle: true, sourcemap: !production, minify: production };
+
+// purs-backend-es does not recopy foreign.js when only the JS changed
+// (it keys on the .purs file), so sync foreign modules from output/ (which
+// spago keeps fresh) into output-es/ before bundling.
+function syncForeignModules() {
+  if (!existsSync("output-es") || !existsSync("output")) return;
+  let copied = 0;
+  for (const entry of readdirSync("output-es")) {
+    const esForeign = `output-es/${entry}/foreign.js`;
+    const outForeign = `output/${entry}/foreign.js`;
+    if (!existsSync(outForeign)) continue;
+    if (!existsSync(esForeign) || statSync(esForeign).mtimeMs < statSync(outForeign).mtimeMs) {
+      copyFileSync(outForeign, esForeign);
+      copied += 1;
+    }
+  }
+  if (copied > 0) console.log(`[ext] synced ${copied} foreign.js from output/ to output-es/`);
+}
+syncForeignModules();
 
 const webviewEntry = "webview-src/entry.js";
 const webviewReady = existsSync("output-es/Webview.Main/index.js");

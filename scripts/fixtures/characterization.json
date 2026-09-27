@@ -2,9 +2,11 @@
   "commands": {
     "ids": [
       "pursGraphs.previewDot",
-      "pursGraphs.previewGraph"
+      "pursGraphs.previewGraph",
+      "pursGraphs.showcase",
+      "pursGraphs.fluentPanel"
     ],
-    "contextSubscriptionCount": 2
+    "contextSubscriptionCount": 4
   },
   "noEditorError": {
     "previewDot": [

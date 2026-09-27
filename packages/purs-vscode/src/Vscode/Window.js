@@ -25,3 +25,5 @@ export const documentLanguageId = (document) => () => document.languageId;
 export const documentUri = (document) => () => document.uri;
 
 export const documentText = (document) => () => document.getText();
+
+export const showTextDocument = (document) => () => vscode.window.showTextDocument(document);

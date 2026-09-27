@@ -15,3 +15,9 @@ export const onDidChangeTextDocument = (handler) => () =>
   vscode.workspace.onDidChangeTextDocument((event) => handler(event)());
 
 export const eventDocument = (event) => () => event.document;
+
+// Untitled-document creation (showcase gallery). The options object carries
+// exactly the field names the vscode API expects; the stub resolves
+// synchronously (see the .purs header note on the Thenable convention).
+export const openTextDocumentWithContent = (language) => (content) => () =>
+  vscode.workspace.openTextDocument({ language, content });

@@ -1,6 +1,7 @@
 // Dev-only stub of the `vscode` module. Implements EXACTLY the API surface used
-// by src/extension.ts — a test double that records calls and resolves promises,
-// never mimicking real VSCode behavior. All recordings are reachable through
+// by src/extension.ts plus the showcase-gallery surface
+// (openTextDocument/showTextDocument) — a test double that records calls and
+// resolves promises, never mimicking real VSCode behavior. All recordings are reachable through
 // the `__stub` namespace; `__stub.reset()` clears state between tests (state is
 // per-process, arrays keep identity across resets).
 
@@ -9,11 +10,14 @@ const state = {
   panels: [],
   errorMessages: [],
   postMessages: [],
+  openedDocuments: [],
+  shownDocuments: [],
   docChangeListeners: [],
   disposeListeners: [],
   messageListeners: [],
   config: {},
   activeTextEditor: undefined,
+  untitledSeq: 0,
 };
 
 function removeFrom(list, entry) {
@@ -100,11 +104,37 @@ const window = {
     return Promise.resolve();
   },
   createWebviewPanel,
+  // Records the shown document and activates an editor for it. MUST resolve:
+  // a rejection would crash Node 22 as an unhandled rejection.
+  showTextDocument(document) {
+    state.shownDocuments.push(document);
+    const editor = { document, viewColumn: 1 };
+    state.activeTextEditor = editor;
+    return Promise.resolve(editor);
+  },
 };
 
 const workspace = {
   onDidChangeTextDocument(callback, thisArg, disposables) {
     return subscribe(state.docChangeListeners, () => ({ callback, thisArg }), disposables);
+  },
+  // The untitled-document overload ({ language, content }) used by the
+  // showcase gallery. Returns synchronously — the PS binding is a plain
+  // Effect, matching the stub-sync convention of the other bindings.
+  openTextDocument(options) {
+    if (options && typeof options === "object" && typeof options.content === "string") {
+      state.untitledSeq += 1;
+      const name = `Untitled-${state.untitledSeq}`;
+      const doc = {
+        fileName: name,
+        languageId: options.language ?? "plaintext",
+        uri: { toString: () => `untitled:${name}` },
+        getText: () => options.content,
+      };
+      state.openedDocuments.push(doc);
+      return doc;
+    }
+    return undefined;
   },
   getConfiguration(section) {
     return {
@@ -129,6 +159,8 @@ const RESETTABLE_LISTS = [
   "docChangeListeners",
   "disposeListeners",
   "messageListeners",
+  "openedDocuments",
+  "shownDocuments",
 ];
 
 const __stub = {
@@ -136,6 +168,8 @@ const __stub = {
   panels: state.panels,
   errorMessages: state.errorMessages,
   postMessages: state.postMessages,
+  openedDocuments: state.openedDocuments,
+  shownDocuments: state.shownDocuments,
   docChangeListeners: state.docChangeListeners,
   disposeListeners: state.disposeListeners,
   messageListeners: state.messageListeners,
@@ -174,6 +208,7 @@ const __stub = {
       delete state.config[key];
     }
     state.activeTextEditor = undefined;
+    state.untitledSeq = 0;
   },
 };
 

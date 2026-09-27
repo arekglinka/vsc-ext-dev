@@ -94,9 +94,20 @@ export const fireWebviewMessage = (panel) => (payload) => () => {
   }
 };
 
+// Showcase-gallery observations (stub records opens/shows).
+export const openedDocumentsCount = () => vscode.__stub.openedDocuments.length;
+
+export const openedDocumentLanguageAt = (index) => () =>
+  vscode.__stub.openedDocuments[index].languageId;
+
+export const openedDocumentTextAt = (index) => () => vscode.__stub.openedDocuments[index].getText();
+
+export const shownDocumentsCount = () => vscode.__stub.shownDocuments.length;
+
 // Raw webview→host payloads exactly as scripts/capture-behavior.cjs fires them
 // (plain JS objects; the PS handler receives them AS argonaut Json).
 export const errorPayload = { type: "error", kind: "dot", message: "bad dot" };
+export const readyPayload = { type: "ready" };
 
 export const renderedPayload = { type: "rendered", kind: "dot", ms: 12 };
 
@@ -126,3 +137,8 @@ export const postMessagesLength = () => vscode.__stub.postMessages.length;
 // JSON.stringify is the faithful observation point (key order included).
 export const postMessageStringifyAt = (index) => () =>
   JSON.stringify(vscode.__stub.postMessages[index]);
+
+// Showcase gallery webview→host payloads (plain JS objects, same as above).
+export const openSamplePayload = { type: "openSample", id: "oauth-flow" };
+
+export const openSampleUnknownPayload = { type: "openSample", id: "nope" };

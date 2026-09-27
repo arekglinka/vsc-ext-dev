@@ -27,6 +27,11 @@
 -- |     (create or reveal) posts an update; `postMessage` is void-discarded.
 -- |
 -- | FFI rule: this module uses ONLY the `Vscode.*` bindings — no raw FFI.
+-- |
+-- | Post-migration additions: `pursGraphs.showcase` (the demo gallery) and
+-- | `pursGraphs.fluentPanel` (the Rust/WASM-animated panel) are NEW feature
+-- | work layered on top of the frozen port — see the showcase / fluent
+-- | sections near the end of this module. Neither touches frozen behavior.
 module Host.Main
   ( activate
   , kindForDocument
@@ -34,7 +39,7 @@ module Host.Main
 
 import Prelude
 
-import Data.Array (last)
+import Data.Array (find, last)
 import Data.Maybe (Maybe(..), fromMaybe, isJust, maybe)
 import Data.String (Pattern(..), stripSuffix)
 import Data.String as Str
@@ -45,13 +50,41 @@ import Effect.Ref as Ref
 import Effect.Uncurried (EffectFn1, mkEffectFn1)
 import Foreign.Object (Object)
 import Foreign.Object as Object
-import GraphProtocol (GraphKind(..), WebviewToHost(..), decodeWebviewToHost, encodeHostUpdate, kindToString)
+import GraphProtocol
+  ( GraphKind(..)
+  , WebviewToHost(..)
+  , decodeWebviewToHost
+  , encodeFluentPanel
+  , encodeHostUpdate
+  , encodeShowcase
+  , kindToString
+  )
+import Host.FluentHtml (getFluentHtml)
+import Host.GalleryHtml (getGalleryHtml)
 import Host.Html (getHtml, getNonce)
+import Host.Samples (fluentGraph, showcaseSamples)
 import Vscode.Commands (registerCommand)
 import Vscode.Core (ExtensionContext, TextDocument, WebviewPanel, beside, extensionUri, joinPath, pushSubscription, uriToString, viewColumnOne)
 import Vscode.WebviewPanel (asWebviewUri, onDidReceiveMessage, panelOnDispose, panelReveal, panelVisible, postMessage, setWebviewHtml, webviewOf)
-import Vscode.Window (activeTextEditor, createWebviewPanel, documentFileName, documentLanguageId, documentText, documentUri, editorDocument, editorViewColumn, showErrorMessage)
-import Vscode.Workspace (eventDocument, getConfigString, getConfiguration, onDidChangeTextDocument)
+import Vscode.Window
+  ( activeTextEditor
+  , createWebviewPanel
+  , documentFileName
+  , documentLanguageId
+  , documentText
+  , documentUri
+  , editorDocument
+  , editorViewColumn
+  , showErrorMessage
+  , showTextDocument
+  )
+import Vscode.Workspace
+  ( eventDocument
+  , getConfigString
+  , getConfiguration
+  , onDidChangeTextDocument
+  , openTextDocumentWithContent
+  )
 
 -- | VSCode's activation entry point (`export function activate`, :62).
 -- | An uncurried `EffectFn1` so the entry shim can re-export it directly as
@@ -71,8 +104,12 @@ activateImpl context = do
   panels <- Ref.new Object.empty
   dotDisposable <- registerCommand "pursGraphs.previewDot" (openPreview context panels Dot)
   graphDisposable <- registerCommand "pursGraphs.previewGraph" (openPreview context panels Graph)
+  showcaseDisposable <- registerCommand showcaseCommandId (openShowcase context panels)
+  fluentDisposable <- registerCommand fluentCommandId (openFluentPanel context panels)
   pushSubscription context dotDisposable
   pushSubscription context graphDisposable
+  pushSubscription context showcaseDisposable
+  pushSubscription context fluentDisposable
 
 -- | `async function openPreview(kind)` (:65-84) — the command handler body.
 -- | Synchronous in effect: the TS `async` wrapper never awaits anything.
@@ -120,6 +157,7 @@ createPanel context panels doc key = do
     case decodeWebviewToHost payload of
       Just (WError errorKind message) ->
         log ("[purs-graphs] " <> kindToString errorKind <> " render error: " <> message)
+      Just Ready -> pushUpdate panel doc
       _ -> pure unit
   pushSubscription context onMessageDisposable
 
@@ -192,6 +230,138 @@ jsSliceFrom i s =
 -- | `Maybe`, the JS `pop` never is).
 splitPop :: String -> String
 splitPop fileName = fromMaybe fileName (last (Str.split (Pattern "/") fileName))
+
+-- | ---------------------------------------------------------------------------
+-- | Showcase gallery — post-migration feature work (see module header).
+-- | Opens (or reveals) a single gallery panel fed by `Host.Samples`; the
+-- | webview renders every sample and posts `OpenSample` for the "Open sample
+-- | in editor" button, which lands in an untitled document below.
+-- | ---------------------------------------------------------------------------
+
+showcaseCommandId :: String
+showcaseCommandId = "pursGraphs.showcase"
+
+-- | Registry key for the single showcase panel. Document previews key on the
+-- | document Uri; the gallery has no document, so it gets a fixed synthetic
+-- | key (same `PanelRegistry`, so dispose cleanup is shared).
+showcasePanelKey :: String
+showcasePanelKey = "purs-graphs://showcase"
+
+openShowcase :: ExtensionContext -> PanelRegistry -> Effect Unit
+openShowcase context panels = do
+  known <- Ref.read panels <#> Object.lookup showcasePanelKey
+  panel <- case known of
+    Just existing -> pure existing
+    Nothing -> createShowcasePanel context panels
+  panelReveal panel beside
+  pushShowcase panel
+
+createShowcasePanel :: ExtensionContext -> PanelRegistry -> Effect WebviewPanel
+createShowcasePanel context panels = do
+  extUri <- extensionUri context
+  mediaRoot <- joinPath extUri [ "media" ]
+  panel <- createWebviewPanel "pursGraphs.showcase" "Purs Graphs Showcase" beside
+    { enableScripts: true
+    , localResourceRoots: [ mediaRoot ]
+    }
+  webview <- webviewOf panel
+  scriptUri <- joinPath extUri [ "media", "webview.js" ] >>= asWebviewUri webview >>= uriToString
+  nonce <- getNonce
+  setWebviewHtml webview (getGalleryHtml scriptUri nonce)
+  Ref.modify_ (Object.insert showcasePanelKey panel) panels
+
+  onMessageDisposable <- onDidReceiveMessage webview \payload ->
+    case decodeWebviewToHost payload of
+      Just (WError errorKind message) ->
+        log ("[purs-graphs] " <> kindToString errorKind <> " render error: " <> message)
+      Just (OpenSample sampleId) -> openSampleInEditor sampleId
+      -- Re-push on ready: the creation-time post races the webview load
+      -- (VSCode drops messages sent before the webview is listening).
+      Just Ready -> pushShowcase panel
+      _ -> pure unit
+  pushSubscription context onMessageDisposable
+
+  disposeDisposable <- panelOnDispose panel (Ref.modify_ (Object.delete showcasePanelKey) panels)
+  pushSubscription context disposeDisposable
+
+  pure panel
+
+pushShowcase :: WebviewPanel -> Effect Unit
+pushShowcase panel = do
+  webview <- webviewOf panel
+  postMessage webview (encodeShowcase { samples: showcaseSamples })
+
+-- | ---------------------------------------------------------------------------
+-- | Fluent panel (`pursGraphs.fluentPanel`) — a live force-directed animation
+-- | whose physics runs in Rust compiled to WebAssembly. The panel receives
+-- | the graph once (`fluentGraph` below); every frame is simulated in wasm
+-- | and rendered by the webview. No webview→host messages beyond renderer
+-- | errors.
+-- | ---------------------------------------------------------------------------
+
+fluentCommandId :: String
+fluentCommandId = "pursGraphs.fluentPanel"
+
+-- | Registry key for the single fluent panel (same synthetic-key pattern as
+-- | the showcase gallery).
+fluentPanelKey :: String
+fluentPanelKey = "purs-graphs://fluent"
+
+openFluentPanel :: ExtensionContext -> PanelRegistry -> Effect Unit
+openFluentPanel context panels = do
+  known <- Ref.read panels <#> Object.lookup fluentPanelKey
+  panel <- case known of
+    Just existing -> pure existing
+    Nothing -> createFluentPanel context panels
+  panelReveal panel beside
+  pushFluent panel
+
+createFluentPanel :: ExtensionContext -> PanelRegistry -> Effect WebviewPanel
+createFluentPanel context panels = do
+  extUri <- extensionUri context
+  mediaRoot <- joinPath extUri [ "media" ]
+  panel <- createWebviewPanel "pursGraphs.fluent" "Purs Graphs Fluent Panel" beside
+    { enableScripts: true
+    , localResourceRoots: [ mediaRoot ]
+    }
+  webview <- webviewOf panel
+  scriptUri <- joinPath extUri [ "media", "webview.js" ] >>= asWebviewUri webview >>= uriToString
+  nonce <- getNonce
+  setWebviewHtml webview (getFluentHtml scriptUri nonce)
+  Ref.modify_ (Object.insert fluentPanelKey panel) panels
+
+  onMessageDisposable <- onDidReceiveMessage webview \payload ->
+    case decodeWebviewToHost payload of
+      Just (WError errorKind message) ->
+        log ("[purs-graphs] " <> kindToString errorKind <> " render error: " <> message)
+      Just Ready -> pushFluent panel
+      _ -> pure unit
+  pushSubscription context onMessageDisposable
+
+  disposeDisposable <- panelOnDispose panel (Ref.modify_ (Object.delete fluentPanelKey) panels)
+  pushSubscription context disposeDisposable
+
+  pure panel
+
+pushFluent :: WebviewPanel -> Effect Unit
+pushFluent panel = do
+  webview <- webviewOf panel
+  postMessage webview (encodeFluentPanel fluentGraph)
+
+-- | Language id for an untitled sample document. `dot` classifies straight
+-- | into `kindForDocument` (live preview works immediately); JSON samples
+-- | need saving as `*.graph.json` first — the gallery footer says so.
+languageOfKind :: GraphKind -> String
+languageOfKind = case _ of
+  Dot -> "dot"
+  Graph -> "json"
+
+openSampleInEditor :: String -> Effect Unit
+openSampleInEditor sampleId = case find (\s -> s.id == sampleId) showcaseSamples of
+  Nothing -> showErrorMessage ("Purs Graphs: unknown showcase sample: " <> sampleId)
+  Just sample -> do
+    doc <- openTextDocumentWithContent (languageOfKind sample.kind) sample.source
+    showTextDocument doc
 
 noEditorMessage :: String
 noEditorMessage = "Purs Graphs: open a .dot/.gv or *.graph.json file first."

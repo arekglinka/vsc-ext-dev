@@ -25,16 +25,31 @@ module Host.Html
 
 import Prelude
 
+import Data.Array (replicate)
+import Data.Int (floor, toNumber)
+import Data.Maybe (fromMaybe)
+import Data.String.CodeUnits (charAt, fromCharArray, length)
+import Data.Traversable (sequence)
 import Effect (Effect)
 
--- | FFI: 8-line verbatim JS port of `getNonce` (`extension.ts:206-213`).
--- | Kept dependency-free on purpose (pure JS + Math.random, no npm imports).
-foreign import getNonceImpl :: Effect String
+-- | FFI: the ONLY JS piece — the randomness source (documented parity
+-- | decision: Math.random, not crypto).
+foreign import mathRandom :: Effect Number
 
--- | Generate a 32-character alphanumeric nonce (`[A-Za-z0-9]`, Math.random).
--- | Verbatim port of `src/extension.ts:206-213` — do NOT "upgrade" to crypto.
+nonceAlphabet :: String
+nonceAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+
+randomNonceChar :: Effect Char
+randomNonceChar = do
+  r <- mathRandom
+  let index = floor (r * toNumber (length nonceAlphabet))
+  pure $ fromMaybe 'A' (charAt index nonceAlphabet)
+
+-- | Generate a 32-character alphanumeric nonce (`[A-Za-z0-9]`, Math.random
+-- | per character — verbatim port of `src/extension.ts:206-213`; do NOT
+-- | "upgrade" to crypto).
 getNonce :: Effect String
-getNonce = getNonceImpl
+getNonce = fromCharArray <$> sequence (replicate 32 randomNonceChar)
 
 -- | Render the webview HTML.
 -- |

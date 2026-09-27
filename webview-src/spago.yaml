@@ -13,3 +13,8 @@ package:
     - purs-graphs-protocol
     - purs-viz
     - strings
+  test:
+    main: Test.WebviewMain
+    dependencies:
+      - spec
+      - aff

@@ -13,6 +13,11 @@ libraries. The extension host and the webview are both PureScript.
 
 1. Open a `.dot` file → run **Purs Graphs: Preview DOT** (`Ctrl+Shift+G`).
 2. Open a `*.graph.json` file → run **Purs Graphs: Preview Graph (JSON)**.
+3. No file at hand? Run **Purs Graphs: Showcase Gallery** — a demo panel with
+   six samples (clusters, a radial `circo` layout, JSON+dagre graphs) rendered
+   by the same pipeline. Pick a sample, then hit **Open sample in editor** to
+   drop its source into an untitled editor and keep tinkering (DOT samples
+   live-preview immediately; save JSON ones as `*.graph.json` first).
 
 The preview opens beside the editor and **live-refreshes** as you type.
 Errors render inline in the webview. Sample files live in [`samples/`](samples/).
@@ -63,7 +68,8 @@ host↔webview message protocol lives in
 the single source of truth both sides import:
 
 - host → webview: `{ type: "update", kind: "dot" | "graph", source, fileName, engine }`
-- webview → host: `{ type: "ready" } | { type: "rendered", kind, ms } | { type: "error", kind, message }`
+- host → webview (gallery): `{ type: "showcase", samples: [{ id, title, description, kind, source, fileName, engine }] }`
+- webview → host: `{ type: "ready" } | { type: "rendered", kind, ms } | { type: "error", kind, message } | { type: "openSample", id }`
 
 ## Build
 
@@ -103,14 +109,19 @@ client disconnects (`shutdownAction: "none"`), so two access paths share one
 container:
 
 - **Agents (headless)**: `podman exec -it purs-graphs-dev bash -lc 'omo ...'`
-  (`containerUser` is `node`, so exec lands in the right home; use
-  `-u root` for the occasional package install).
+  (exec starts in `/workspaces/vsc-ext-dev`, where OmO keeps its `.omo`
+  project dir; `containerUser` is `node`, use `-u root` for package
+  installs).
 - **Inspect (VSCode)**: reconnect normally via "Reopen in Container", or attach
   to the running container ("Dev Containers: Attach to Running Container").
 
 Headless start without VSCode: `npm run devcontainer:up` — builds, applies
 lifecycle commands, and leaves the container running (wraps the
 `@devcontainers/cli`, shimming podman when docker is absent).
+
+Two one-time notes: changing devcontainer config applies only to a NEW
+container (`podman rm -f purs-graphs-dev`, then start again), and OmO needs
+`/login` inside its TUI once per container to store model credentials.
 
 ## License
 

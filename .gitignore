@@ -12,12 +12,16 @@ dist/
 media/
 *.vsix
 
+# Rust / wasm engine build output (artifact is inlined into webview-src)
+fluent-wasm/target/
+
 # IDE / Editor
 .idea/
 .vscode/*
 !.vscode/settings.json
 !.vscode/launch.json
 !.vscode/tasks.json
+.psc-ide-port
 *.swp
 *.swo
 *~
@@ -31,3 +35,8 @@ Thumbs.db
 .env
 .env.local
 *.log
+
+# Agent / tool-local state
+.sisyphus/
+.omo/
+.vsix-extract/

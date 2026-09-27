@@ -23,6 +23,8 @@
       ".spago/",
       ".cache/",
       ".sisyphus/",
+      "fluent-wasm/target/",
+      "webview-src/src/Webview/fluent-wasm.js",
       "scripts/fixtures/",
       ".vscode/",
       "*.vsix"

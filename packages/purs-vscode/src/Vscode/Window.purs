@@ -1,7 +1,8 @@
 -- | Bindings to `vscode.window`: the active text editor, error
--- | notifications, and webview panel creation, plus the text-editor /
--- | text-document accessors (kept here to keep `Vscode.Window` cohesive —
--- | the opaque handles themselves live in `Vscode.Core`).
+-- | notifications, webview panel creation, and showing a document in an
+-- | editor (the showcase gallery's "Open sample in editor" hop), plus the
+-- | text-editor / text-document accessors (kept here to keep `Vscode.Window`
+-- | cohesive — the opaque handles themselves live in `Vscode.Core`).
 -- |
 -- | FFI note: the `.js` counterpart uses the DEFAULT import
 -- | (`import vscode from "vscode"`) — under Node's CJS-ESM interop a
@@ -16,6 +17,7 @@ module Vscode.Window
   , activeTextEditor
   , showErrorMessage
   , createWebviewPanel
+  , showTextDocument
   , editorDocument
   , editorViewColumn
   , documentFileName
@@ -43,6 +45,12 @@ type PanelOptions =
 -- | Internal: `vscode.window.activeTextEditor` is `undefined` when no editor
 -- | is active, hence the `Nullable` crossing.
 foreign import _activeTextEditorImpl :: Effect (Nullable TextEditor)
+
+-- | Show a text document in an editor
+-- | (`vscode.window.showTextDocument(document)`). Stub-synchronous like
+-- | `createWebviewPanel`: the returned Thenable is discarded and the stub
+-- | records the call while activating an editor for the document.
+foreign import showTextDocument :: TextDocument -> Effect Unit
 
 -- | The currently active editor, or `Nothing` when no editor has focus
 -- | (`vscode.window.activeTextEditor`).

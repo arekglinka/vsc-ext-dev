@@ -1,0 +1,19 @@
+# Never COPY these into the image — they are build outputs or machine-local
+# state; keeping them out preserves layer cache validity and image size.
+.git
+.github
+.vscode
+.sisyphus
+.omo
+.cache
+.spago
+node_modules
+output
+output-es
+dist
+media/webview.js
+media/webview.js.map
+fluent-wasm/target
+*.vsix
+.vscode-test
+tmp

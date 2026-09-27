@@ -10,52 +10,28 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-test-package:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build, test, package (multistage, layer-cached)
+        uses: docker/build-push-action@v6
         with:
-          node-version: '22'
-          cache: 'npm'
+          context: .
+          target: artifact
+          outputs: type=local,dest=ci-out
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Install deps (toolchain + extension)
-        run: npm ci
-
-      - name: Format check (purs-tidy + biome)
-        run: npm run format:check
-
-      - name: Build PureScript (bindings + webview)
-        run: npm run build
-
-      - name: Package tests (all 5 spago packages)
-        run: |
-          npx spago test -p purs-dagre
-          npx spago test -p purs-viz
-          npx spago test -p purs-graphs-protocol
-          npx spago test -p purs-vscode
-          npx spago test -p purs-graphs-host
-
-      - name: ES output
-        run: npm run backend
-
-      - name: Bundle extension
-        run: node esbuild.mjs
-
-      - name: Webview smoke test
-        run: node scripts/smoke.cjs
-
-      - name: Host smoke test
-        run: node scripts/host-smoke.cjs
-
-      - name: Package VSIX
-        run: npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix
+      - name: Check artifact
+        run: test -s ci-out/purs-graphs.vsix && ls -la ci-out/
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
           name: purs-graphs-vsix
-          path: purs-graphs.vsix
+          path: ci-out/purs-graphs.vsix

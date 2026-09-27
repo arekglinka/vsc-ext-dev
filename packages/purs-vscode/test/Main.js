@@ -103,3 +103,7 @@ export const postMessagesLength = () => vscode.__stub.postMessages.length;
 // JSON.stringify is the faithful observation point (key order included).
 export const postMessageStringifyAt = (index) => () =>
   JSON.stringify(vscode.__stub.postMessages[index]);
+
+export const openedDocumentsLength = () => vscode.__stub.openedDocuments.length;
+
+export const shownDocumentsLength = () => vscode.__stub.shownDocuments.length;

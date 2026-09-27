@@ -27,6 +27,16 @@
         "command": "pursGraphs.previewGraph",
         "title": "Purs Graphs: Preview Graph (JSON)",
         "icon": "$(graph-scatter)"
+      },
+      {
+        "command": "pursGraphs.showcase",
+        "title": "Purs Graphs: Showcase Gallery",
+        "icon": "$(library)"
+      },
+      {
+        "command": "pursGraphs.fluentPanel",
+        "title": "Purs Graphs: Fluent Panel",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -72,10 +82,13 @@
   "scripts": {
     "build": "spago build",
     "backend": "purs-backend-es build --corefn-dir output --output-dir output-es",
-    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs && spago test -p purs-graphs-protocol && spago test -p purs-vscode && spago test -p purs-graphs-host && node scripts/host-smoke.cjs",
+    "test": "spago test -p purs-dagre && spago test -p purs-viz && node scripts/smoke.cjs && spago test -p purs-graphs-protocol && spago test -p purs-vscode && spago test -p purs-graphs-host && spago test -p purs-graphs-webview && node scripts/host-smoke.cjs",
+    "test:wasm": "scripts/test-wasm.sh",
     "compile": "npm run build && npm run backend && node esbuild.mjs",
+    "wasm": "node scripts/build-wasm.mjs",
+    "install:extension": "node scripts/install-extension.mjs",
     "watch": "spago build --watch & node esbuild.mjs --watch",
-    "package": "npm run compile && npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix",
+    "package": "npm run compile && npx @vscode/vsce package --no-dependencies -o purs-graphs.vsix && node scripts/install-extension.mjs",
     "devcontainer:up": "scripts/devcontainer up --workspace-folder .",
     "format": "purs-tidy format-in-place packages webview-src host-src && biome check --write .",
     "format:check": "purs-tidy check packages webview-src host-src && biome check ."

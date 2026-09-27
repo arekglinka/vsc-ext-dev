@@ -30,10 +30,14 @@ import Test.Spec.Runner (run)
 import GraphProtocol
   ( GraphKind(..)
   , HostUpdate
+  , ShowcasePayload
+  , ShowcaseSample
   , WebviewToHost(..)
   , decodeHostUpdate
+  , decodeShowcase
   , decodeWebviewToHost
   , encodeHostUpdate
+  , encodeShowcase
   , encodeWebviewToHost
   , kindFromString
   , kindToString
@@ -49,6 +53,11 @@ decodeJsonOf s = hush (jsonParser s) >>= decodeWebviewToHost
 -- | receives through `onMessage`).
 decodeHostJsonOf :: String -> Maybe HostUpdate
 decodeHostJsonOf s = hush (jsonParser s) >>= decodeHostUpdate
+
+-- | Decode a JSON string at the `ShowcasePayload` level (the gallery
+-- | direction of `onMessage`).
+decodeShowcaseJsonOf :: String -> Maybe ShowcasePayload
+decodeShowcaseJsonOf s = hush (jsonParser s) >>= decodeShowcase
 
 -- | Pick one of several string fragments, including JSON-awkward ones
 -- | (quotes, backslashes, newlines, non-ASCII) to exercise codec escaping.
@@ -80,15 +89,18 @@ newtype ArbWebviewToHost = ArbWebviewToHost WebviewToHost
 instance Arbitrary ArbWebviewToHost where
   arbitrary = do
     ArbKind kind <- arbitrary
-    variant <- chooseInt 0 2
+    variant <- chooseInt 0 3
     case variant of
       0 -> pure (ArbWebviewToHost Ready)
       1 -> do
         ms <- choose (-1000000.0) 1000000.0
         pure (ArbWebviewToHost (Rendered kind ms))
-      _ -> do
+      2 -> do
         message <- genWireString
         pure (ArbWebviewToHost (WError kind message))
+      _ -> do
+        sampleId <- genWireString
+        pure (ArbWebviewToHost (OpenSample sampleId))
 
 -- | `HostUpdate` is a type synonym (records get structural `Eq` but no `Show`
 -- | instance), so the round-trip property asserts via `Result` directly.
@@ -101,6 +113,33 @@ propHostUpdateRoundTrip (ArbHostUpdate u) =
 propWebviewToHostRoundTrip :: ArbWebviewToHost -> Result
 propWebviewToHostRoundTrip (ArbWebviewToHost m) =
   decodeWebviewToHost (encodeWebviewToHost m) === Just m
+
+-- | ShowcaseSample is a type synonym (records get structural Eq but no
+-- | Show), so the generator builds records of that exact shape.
+genShowcaseSample :: Gen ShowcaseSample
+genShowcaseSample = do
+  ArbKind kind <- arbitrary
+  sid <- genWireString
+  title <- genWireString
+  description <- genWireString
+  source <- genWireString
+  fileName <- genWireString
+  engine <- genWireString
+  pure { id: sid, title, description, kind, source, fileName, engine }
+
+newtype ArbShowcasePayload = ArbShowcasePayload ShowcasePayload
+
+instance Arbitrary ArbShowcasePayload where
+  arbitrary = do
+    n <- chooseInt 0 4
+    samples <- traverse (const genShowcaseSample) (range 1 n)
+    pure (ArbShowcasePayload { samples })
+
+propShowcaseRoundTrip :: ArbShowcasePayload -> Result
+propShowcaseRoundTrip (ArbShowcasePayload p) =
+  case decodeShowcase (encodeShowcase p) of
+    Just p' | p' == p -> Success
+    _ -> Failed "decodeShowcase (encodeShowcase p) /= Just p"
 
 main :: Effect Unit
 main = launchAff_ $ run [ consoleReporter ] do
@@ -138,6 +177,14 @@ main = launchAff_ $ run [ consoleReporter ] do
       it "rejects an unknown type tag (silent drop parity)" do
         decodeJsonOf "{\"type\":\"nope\"}" `shouldEqual` Nothing
 
+      it "decodes openSample with a string id (showcase)" do
+        decodeJsonOf "{\"type\":\"openSample\",\"id\":\"oauth-flow\"}"
+          `shouldEqual` Just (OpenSample "oauth-flow")
+
+      it "rejects openSample without a string id (silent drop parity)" do
+        decodeJsonOf "{\"type\":\"openSample\"}" `shouldEqual` Nothing
+        decodeJsonOf "{\"type\":\"openSample\",\"id\":7}" `shouldEqual` Nothing
+
       it "rejects non-object payloads (string, number, null, array)" do
         decodeJsonOf "\"hello\"" `shouldEqual` Nothing
         decodeJsonOf "42" `shouldEqual` Nothing
@@ -161,6 +208,10 @@ main = launchAff_ $ run [ consoleReporter ] do
       it "encodes ready to the exact wire shape" do
         stringify (encodeWebviewToHost Ready) `shouldEqual` "{\"type\":\"ready\"}"
 
+      it "encodes openSample to the exact wire shape (key-for-key)" do
+        stringify (encodeWebviewToHost (OpenSample "ci-pipeline"))
+          `shouldEqual` "{\"type\":\"openSample\",\"id\":\"ci-pipeline\"}"
+
     describe "encodeHostUpdate" do
       it "encodes a host update to the exact wire shape (key-for-key)" do
         let
@@ -168,6 +219,56 @@ main = launchAff_ $ run [ consoleReporter ] do
         stringify (encodeHostUpdate u)
           `shouldEqual`
             "{\"type\":\"update\",\"kind\":\"dot\",\"source\":\"digraph{a}\",\"fileName\":\"x.dot\",\"engine\":\"neato\"}"
+
+    describe "encodeShowcase" do
+      it "encodes a showcase payload to the exact wire shape (key-for-key)" do
+        let
+          s =
+            { id: "s1"
+            , title: "T"
+            , description: "D"
+            , kind: Dot
+            , source: "digraph{a}"
+            , fileName: "x.dot"
+            , engine: "neato"
+            }
+        stringify (encodeShowcase { samples: [ s ] })
+          `shouldEqual`
+            "{\"type\":\"showcase\",\"samples\":[{\"id\":\"s1\",\"title\":\"T\",\"description\":\"D\",\"kind\":\"dot\",\"source\":\"digraph{a}\",\"fileName\":\"x.dot\",\"engine\":\"neato\"}]}"
+
+    describe "decodeShowcase" do
+      it "decodes a full payload with mixed kinds" do
+        decodeShowcaseJsonOf
+          "{\"type\":\"showcase\",\"samples\":[{\"id\":\"a\",\"title\":\"A\",\"description\":\"d\",\"kind\":\"dot\",\"source\":\"s\",\"fileName\":\"a.dot\",\"engine\":\"circo\"},{\"id\":\"b\",\"title\":\"B\",\"description\":\"d\",\"kind\":\"graph\",\"source\":\"{}\",\"fileName\":\"b.graph.json\",\"engine\":\"dot\"}]}"
+          `shouldEqual` Just
+            { samples:
+                [ { id: "a", title: "A", description: "d", kind: Dot, source: "s", fileName: "a.dot", engine: "circo" }
+                , { id: "b", title: "B", description: "d", kind: Graph, source: "{}", fileName: "b.graph.json", engine: "dot" }
+                ]
+            }
+
+      it "decodes an empty sample list" do
+        decodeShowcaseJsonOf "{\"type\":\"showcase\",\"samples\":[]}" `shouldEqual` Just { samples: [] }
+
+      it "rejects non-showcase type tags (direction separation)" do
+        decodeShowcaseJsonOf "{\"type\":\"update\",\"samples\":[]}" `shouldEqual` Nothing
+        decodeShowcaseJsonOf "{\"type\":\"ready\"}" `shouldEqual` Nothing
+
+      it "rejects a sample with a missing field" do
+        decodeShowcaseJsonOf "{\"type\":\"showcase\",\"samples\":[{\"id\":\"a\"}]}" `shouldEqual` Nothing
+
+      it "rejects a sample with a mistyped field" do
+        decodeShowcaseJsonOf
+          "{\"type\":\"showcase\",\"samples\":[{\"id\":1,\"title\":\"t\",\"description\":\"d\",\"kind\":\"dot\",\"source\":\"s\",\"fileName\":\"f\",\"engine\":\"e\"}]}"
+          `shouldEqual` Nothing
+
+      it "rejects an unknown sample kind" do
+        decodeShowcaseJsonOf
+          "{\"type\":\"showcase\",\"samples\":[{\"id\":\"a\",\"title\":\"t\",\"description\":\"d\",\"kind\":\"bogus\",\"source\":\"s\",\"fileName\":\"f\",\"engine\":\"e\"}]}"
+          `shouldEqual` Nothing
+
+      it "rejects a samples field that is not an array" do
+        decodeShowcaseJsonOf "{\"type\":\"showcase\",\"samples\":\"x\"}" `shouldEqual` Nothing
 
     describe "parseJsonToWebviewToHost" do
       it "parses and decodes a valid message from raw text" do
@@ -183,3 +284,6 @@ main = launchAff_ $ run [ consoleReporter ] do
 
       it "webview-to-host messages survive encode/decode for 100 samples" do
         quickCheck' 100 propWebviewToHostRoundTrip
+
+      it "showcase payloads survive encode/decode for 100 samples" do
+        quickCheck' 100 propShowcaseRoundTrip

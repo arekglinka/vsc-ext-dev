@@ -1,19 +1,23 @@
--- | Bindings to `vscode.workspace`: configuration reads and the
--- | text-document change event behind live refresh.
+-- | Bindings to `vscode.workspace`: configuration reads, the text-document
+-- | change event behind live refresh, and untitled-document creation for the
+-- | showcase gallery's "Open sample in editor" action.
 -- |
 -- | FFI note: the `.js` counterpart uses the DEFAULT import
 -- | (`import vscode from "vscode"`) — under Node's CJS-ESM interop a
 -- | namespace import does not surface the stub's members; see `Vscode.Core`.
 -- |
 -- | The intentionally bound surface mirrors `src/extension.ts:117-125` and
--- | `:140` and nothing more: the single `getConfiguration("pursGraphs").get`
--- | config read and the `onDidChangeTextDocument` subscription whose event
--- | flows `eventDocument` → `documentUri` → `uriToString` at the call site.
+-- | `:140` — the single `getConfiguration("pursGraphs").get` config read and
+-- | the `onDidChangeTextDocument` subscription whose event flows
+-- | `eventDocument` → `documentUri` → `uriToString` at the call site — plus
+-- | `openTextDocumentWithContent` for the showcase gallery (post-migration
+-- | feature work, not part of the frozen port).
 module Vscode.Workspace
   ( getConfiguration
   , getConfigString
   , onDidChangeTextDocument
   , eventDocument
+  , openTextDocumentWithContent
   ) where
 
 import Prelude
@@ -42,3 +46,10 @@ foreign import onDidChangeTextDocument
 -- | of the host's `event.document.uri.toString()` key match
 -- | (`extension.ts:118`, `:121`).
 foreign import eventDocument :: TextDocumentChangeEvent -> Effect TextDocument
+
+-- | Open an untitled text document with the given language id and content
+-- | (`vscode.workspace.openTextDocument({ language, content })`). Like the
+-- | sibling bindings this is stub-synchronous: the dev-only stub returns the
+-- | document immediately; the real API returns a Thenable (the same
+-- | convention `createWebviewPanel` already follows — see `Vscode.Window`).
+foreign import openTextDocumentWithContent :: String -> String -> Effect TextDocument

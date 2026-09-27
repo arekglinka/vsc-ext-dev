@@ -20,8 +20,10 @@ module Test.HostMain where
 import Prelude
 
 import Data.Argonaut.Core (Json)
+import Data.Argonaut.Parser (jsonParser)
 import Data.Array (length)
 import Data.Foldable (all)
+import Data.Either (hush)
 import Data.Maybe (Maybe(..))
 import Data.String (Pattern(..), Replacement(..), contains, replaceAll, split)
 import Data.String as Str
@@ -30,11 +32,13 @@ import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Uncurried (runEffectFn1)
-import GraphProtocol (GraphKind(..))
+import GraphProtocol (GraphKind(..), decodeShowcase)
 import Host.Html (getHtml, getNonce)
+import Host.GalleryHtml (getGalleryHtml)
+import Host.FluentHtml (getFluentHtml)
 import Host.Main (activate, kindForDocument)
 import Test.Spec (describe, it)
-import Test.Spec.Assertions (shouldEqual, shouldNotEqual)
+import Test.Spec.Assertions (fail, shouldEqual, shouldNotEqual, shouldSatisfy)
 import Test.Spec.Reporter.Console (consoleReporter)
 import Test.Spec.Runner (run)
 import Vscode.Core (ExtensionContext, TextDocument, TextEditor)
@@ -72,8 +76,15 @@ foreign import emitDocChange :: TextDocument -> Effect Unit
 foreign import setConfiguration :: String -> String -> String -> Effect Unit
 foreign import fireWebviewMessage :: StubPanel -> Json -> Effect Unit
 foreign import errorPayload :: Json
+foreign import readyPayload :: Json
 foreign import renderedPayload :: Json
 foreign import malformedPayload :: Json
+foreign import openSamplePayload :: Json
+foreign import openSampleUnknownPayload :: Json
+foreign import openedDocumentsCount :: Effect Int
+foreign import openedDocumentLanguageAt :: Int -> Effect String
+foreign import openedDocumentTextAt :: Int -> Effect String
+foreign import shownDocumentsCount :: Effect Int
 foreign import captureLogs :: Effect Unit -> Effect (Array String)
 foreign import postMessagesLength :: Effect Int
 foreign import postMessageStringifyAt :: Int -> Effect String
@@ -184,16 +195,30 @@ main = launchAff_ $ run [ consoleReporter ] do
         Str.length n `shouldEqual` 32
         all isNonceChar (toCharArray n) `shouldEqual` true
 
+  describe "Host.GalleryHtml / Host.FluentHtml" do
+    it "gallery script tag carries the nonce exactly (single-quoted, no backslashes)" do
+      let html = getGalleryHtml "https://x/webview.js" fixedNonce
+      html `shouldSatisfy`
+        Str.contains (Str.Pattern ("<script nonce='" <> fixedNonce <> "' src='https://x/webview.js'"))
+      html `shouldSatisfy` (not <<< Str.contains (Str.Pattern "nonce=\\\""))
+
+    it "fluent script tag carries the nonce exactly (single-quoted, no backslashes)" do
+      let html = getFluentHtml "https://x/webview.js" fixedNonce
+      html `shouldSatisfy`
+        Str.contains (Str.Pattern ("<script nonce='" <> fixedNonce <> "' src='https://x/webview.js'"))
+      html `shouldSatisfy` (not <<< Str.contains (Str.Pattern "nonce=\\\""))
+
   describe "Host.Main" do
 
     describe "activate" do
-      it "registers exactly the two preview commands (fixture order)" do
+      it "registers the two preview commands plus showcase and fluent panel (fixture order)" do
         _ <- liftEffect setup
-        liftEffect $ stubCommandIds `expectEq` [ "pursGraphs.previewDot", "pursGraphs.previewGraph" ]
+        liftEffect $ stubCommandIds `expectEq`
+          [ "pursGraphs.previewDot", "pursGraphs.previewGraph", "pursGraphs.showcase", "pursGraphs.fluentPanel" ]
 
-      it "grows context subscriptions to 2 (both commands; the doc-change listener is per-panel)" do
+      it "grows context subscriptions to 4 (four commands; the doc-change listener is per-panel)" do
         context <- liftEffect setup
-        liftEffect $ subscriptionsLength context `expectEq` 2
+        liftEffect $ subscriptionsLength context `expectEq` 4
 
     describe "openPreview guards" do
       it "no active editor → exact error message (both commands)" do
@@ -270,6 +295,86 @@ main = launchAff_ $ run [ consoleReporter ] do
         liftEffect $ panelsLength `expectEq` 1
         liftEffect $ panelRevealsLength panel `expectEq` 2
         liftEffect $ panelRevealAt panel 1 `expectEq` (-2)
+
+    describe "showcase gallery" do
+      it "invoke with NO editor → panel created (viewType/title/CSP/nav anchors)" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        liftEffect $ panelsLength `expectEq` 1
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ panelViewType panel `expectEq` "pursGraphs.showcase"
+        liftEffect $ panelTitle panel `expectEq` "Purs Graphs Showcase"
+        liftEffect $ panelShowOptions panel `expectEq` (-2)
+        liftEffect $ countNonceRuns panel `expectEq` 2
+        liftEffect $ webviewHtmlContains panel "'wasm-unsafe-eval'" `expectEq` true
+        liftEffect $ webviewHtmlContains panel "img-src vscode-webview:" `expectEq` true
+        liftEffect $ webviewHtmlContains panel "id=\"nav\"" `expectEq` true
+        liftEffect $ webviewHtmlContains panel "id=\"desc\"" `expectEq` true
+        liftEffect $ webviewHtmlContains panel "id=\"open-editor\"" `expectEq` true
+        liftEffect $
+          webviewHtmlContains panel
+            "src='vscode-webview-resource://file:///ext/media/webview.js'"
+            `expectEq` true
+
+      it "posts the showcase payload (6 samples, both kinds, engines pinned)" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        raw <- liftEffect $ postMessageStringifyAt 0
+        case hush (jsonParser raw) >>= decodeShowcase of
+          Nothing -> fail "posted payload did not decode as a showcase"
+          Just payload -> do
+            length payload.samples `shouldEqual` 6
+            (map (_.id) payload.samples) `shouldEqual`
+              [ "ci-pipeline", "oauth-flow", "service-mesh", "dependency-radar", "system-design", "kafka-topics" ]
+            (map (_.kind) payload.samples) `shouldEqual` [ Dot, Dot, Dot, Dot, Graph, Graph ]
+            (map (_.engine) payload.samples) `shouldEqual` [ "dot", "dot", "dot", "circo", "dot", "dot" ]
+
+      it "second invoke → reveal the same panel, payload re-posted" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        liftEffect $ panelsLength `expectEq` 1
+        liftEffect $ panelRevealsLength panel `expectEq` 2
+        liftEffect $ panelRevealAt panel 1 `expectEq` (-2)
+        liftEffect $ postMessagesLength `expectEq` 2
+
+      it "openSample message → untitled doc with the source, shown in an editor" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireWebviewMessage panel openSamplePayload
+        liftEffect $ openedDocumentsCount `expectEq` 1
+        liftEffect $ openedDocumentLanguageAt 0 `expectEq` "dot"
+        opened <- liftEffect $ openedDocumentTextAt 0
+        contains (Pattern "Authorization server") opened `shouldEqual` true
+        liftEffect $ shownDocumentsCount `expectEq` 1
+
+      it "openSample with an unknown id → exact error message, nothing opened" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireWebviewMessage panel openSampleUnknownPayload
+        liftEffect $ openedDocumentsCount `expectEq` 0
+        liftEffect $ drainErrorMessages `expectEq`
+          [ "Purs Graphs: unknown showcase sample: nope" ]
+
+      it "error message on the showcase panel → exact console line" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        panel <- liftEffect $ panelAt 0
+        logs <- liftEffect $ captureLogs (fireWebviewMessage panel errorPayload)
+        logs `shouldEqual` [ "[purs-graphs] dot render error: bad dot" ]
+
+      it "dispose clears the registry → next invoke creates a NEW panel" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireDispose panel
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        liftEffect $ panelsLength `expectEq` 2
+        newPanel <- liftEffect $ panelAt 1
+        liftEffect $ pure (panelReferenceEquals newPanel panel) `expectEq` false
 
     describe "kindForDocument (order-exact port)" do
       it ".gv extension → Dot (extension wins over languageId)" do
@@ -373,6 +478,35 @@ main = launchAff_ $ run [ consoleReporter ] do
           fireWebviewMessage panel malformedPayload
         logs `shouldEqual` []
         liftEffect $ postMessagesLength `expectEq` 1
+
+      it "ready message → the panel's payload is re-pushed (creation-time post raced the load)" do
+        _ <- liftEffect setup
+        demo <- liftEffect $ makeTextDocument demoDotSpec
+        editor <- liftEffect $ makeFakeEditor demo 1
+        liftEffect $ setActiveTextEditor editor
+        liftEffect $ invokeCommand "pursGraphs.previewDot"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireWebviewMessage panel readyPayload
+        liftEffect $ postMessagesLength `expectEq` 2
+        liftEffect $ postMessageStringifyAt 1 `expectEq` demoPayload
+
+      it "ready on the showcase panel → showcase payload re-pushed" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.showcase"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireWebviewMessage panel readyPayload
+        liftEffect $ postMessagesLength `expectEq` 2
+        raw <- liftEffect $ postMessageStringifyAt 1
+        raw `shouldSatisfy` (\s -> Str.contains (Str.Pattern "\"type\":\"showcase\"") s)
+
+      it "ready on the fluent panel → fluent payload re-pushed" do
+        _ <- liftEffect setup
+        liftEffect $ invokeCommand "pursGraphs.fluentPanel"
+        panel <- liftEffect $ panelAt 0
+        liftEffect $ fireWebviewMessage panel readyPayload
+        liftEffect $ postMessagesLength `expectEq` 2
+        raw <- liftEffect $ postMessageStringifyAt 1
+        raw `shouldSatisfy` (\s -> Str.contains (Str.Pattern "\"type\":\"fluentPanel\"") s)
 
     describe "dispose / recreate" do
       it "dispose clears the registry; the per-panel change listener LEAKS on purpose (verbatim)" do

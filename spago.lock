@@ -93,7 +93,10 @@
           ]
         },
         "test": {
-          "dependencies": []
+          "dependencies": [
+            "aff",
+            "spec"
+          ]
         }
       },
       "purs-viz": {

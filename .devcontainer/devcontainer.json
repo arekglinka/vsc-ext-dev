@@ -3,11 +3,15 @@
   "image": "node:22-slim",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/tmux-apt-get:1": {},
     "ghcr.io/michidk/devcontainers-features/bun:1": {}
   },
   "remoteUser": "node",
   "containerUser": "node",
-  "runArgs": ["--name", "purs-graphs-dev"],
+  "runArgs": ["--name", "purs-graphs-dev", "--workdir", "/workspaces/vsc-ext-dev"],
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/vsc-ext-dev,type=bind",
+  "workspaceFolder": "/workspaces/vsc-ext-dev",
   "shutdownAction": "none",
   "containerEnv": {
     "XDG_CACHE_HOME": "/workspaces/vsc-ext-dev/.cache"

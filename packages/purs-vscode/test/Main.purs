@@ -59,12 +59,14 @@ import Vscode.Window
   , editorDocument
   , editorViewColumn
   , showErrorMessage
+  , showTextDocument
   )
 import Vscode.Workspace
   ( eventDocument
   , getConfigString
   , getConfiguration
   , onDidChangeTextDocument
+  , openTextDocumentWithContent
   )
 
 -- Test-side FFI (implemented in test/Main.js): stub drivers that inspect
@@ -99,6 +101,8 @@ foreign import invokeCommand :: String -> Effect Unit
 foreign import setConfiguration :: String -> String -> String -> Effect Unit
 foreign import emitDocChange :: TextDocument -> Effect Unit
 foreign import docChangeListenersLength :: Effect Int
+foreign import openedDocumentsLength :: Effect Int
+foreign import shownDocumentsLength :: Effect Int
 
 -- --- WebviewPanel drivers (implemented in test/Main.js) ---
 
@@ -285,6 +289,20 @@ main = launchAff_ $ run [ consoleReporter ] do
       s <- liftEffect (uriToString uri)
       s `shouldEqual` "file:///ws/demo.dot"
 
+    it "showTextDocument records the document and activates an editor" do
+      liftEffect resetStub
+      doc <- liftEffect makeDemoDocument
+      liftEffect $ showTextDocument doc
+      shown <- liftEffect shownDocumentsLength
+      shown `shouldEqual` 1
+      result <- liftEffect activeTextEditor
+      case result of
+        Just ed -> do
+          d <- liftEffect (editorDocument ed)
+          name <- liftEffect (documentFileName d)
+          name `shouldEqual` "demo.dot"
+        Nothing -> fail "expected showTextDocument to activate an editor"
+
   describe "Vscode.Commands" do
     it "registerCommand records the command id with the stub" do
       liftEffect resetStub
@@ -338,6 +356,21 @@ main = launchAff_ $ run [ consoleReporter ] do
       liftEffect (emitDocChange doc)
       result <- liftEffect (Ref.read received)
       result `shouldEqual` Just "file:///ws/demo.dot"
+
+    it "openTextDocumentWithContent opens an untitled doc with content and language" do
+      liftEffect resetStub
+      doc <- liftEffect (openTextDocumentWithContent "dot" "digraph{a->b}")
+      name <- liftEffect (documentFileName doc)
+      name `shouldEqual` "Untitled-1"
+      lang <- liftEffect (documentLanguageId doc)
+      lang `shouldEqual` "dot"
+      text <- liftEffect (documentText doc)
+      text `shouldEqual` "digraph{a->b}"
+      uri <- liftEffect (documentUri doc)
+      s <- liftEffect (uriToString uri)
+      s `shouldEqual` "untitled:Untitled-1"
+      opened <- liftEffect openedDocumentsLength
+      opened `shouldEqual` 1
 
     it "disposing the onDidChangeTextDocument disposable unregisters the handler" do
       liftEffect resetStub
