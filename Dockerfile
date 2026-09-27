@@ -25,12 +25,15 @@ RUN npm run build \
 FROM build AS test
 RUN npm run format:check && npm test
 
-# Rust engine unit tests run on a rust toolchain image; the marker file
-# copies into the main pipeline so `target: artifact` depends on them.
+# Rust engine: unit tests on the host target AND a release build for
+# wasm32-unknown-unknown (the target the extension actually ships).
 FROM rust:1-slim AS rust-tests
 WORKDIR /crate
 COPY fluent-wasm/ .
-RUN cargo test && touch /rust-tests-passed
+RUN rustup target add wasm32-unknown-unknown \
+  && cargo test \
+  && cargo build --release --target wasm32-unknown-unknown \
+  && touch /rust-tests-passed
 
 FROM test AS gate
 COPY --from=rust-tests /rust-tests-passed /rust-tests-passed
