@@ -103,12 +103,16 @@ client disconnects (`shutdownAction: "none"`), so two access paths share one
 container:
 
 - **Agents (headless)**: `podman exec -it purs-graphs-dev bash -lc 'omo ...'`
-  (login shell so `~/.bun/bin` is on PATH).
+  (`containerUser` is `node`, so exec lands in the right home; use
+  `-u root` for the occasional package install).
 - **Inspect (VSCode)**: reconnect normally via "Reopen in Container", or attach
   to the running container ("Dev Containers: Attach to Running Container").
 
 Headless start without VSCode: `npx @devcontainers/cli up --workspace-folder .`
-— builds, applies lifecycle commands, and leaves the container running.
+— builds, applies lifecycle commands, and leaves the container running. The
+CLI shells out to `docker`; without it, shim podman onto PATH first
+(`mkdir -p ~/.local/bin && printf '#!/bin/sh\nexec podman "$@"\n' >
+~/.local/bin/docker && chmod +x ~/.local/bin/docker`).
 
 ## License
 

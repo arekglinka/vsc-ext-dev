@@ -6,7 +6,8 @@
     "ghcr.io/michidk/devcontainers-features/bun:1": {}
   },
   "remoteUser": "node",
-  "containerName": "purs-graphs-dev",
+  "containerUser": "node",
+  "runArgs": ["--name", "purs-graphs-dev"],
   "shutdownAction": "none",
   "containerEnv": {
     "XDG_CACHE_HOME": "/workspaces/vsc-ext-dev/.cache"
